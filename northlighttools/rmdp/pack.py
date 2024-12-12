@@ -1,7 +1,5 @@
-import base64
-import json
 import zlib
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
@@ -55,6 +53,9 @@ def index_folder(
         relative_path = path.relative_to(input_dir)
 
         if path.is_dir():
+            if prev_file_entry:
+                prev_file_entry.next_file_id = null_id
+
             if len(folders) == 1:
                 folder_name = relative_path.name.replace("_", ":")
             else:
@@ -81,7 +82,7 @@ def index_folder(
 
                     if (
                         prev_folder_entry
-                        and previous_folder_id > current_folder.parent_folder_id
+                        and previous_folder_id >= current_folder.parent_folder_id
                     ):
                         folders[
                             folders.index(prev_folder_entry)
@@ -101,17 +102,24 @@ def index_folder(
             folders.append(current_folder)
             prev_folder_entry = current_folder
         else:
+            # Get parent_folder_id of the current file
+            parent_folder = None
+            for folder in reversed(folders):
+                if folder.name.replace(":", "_") == relative_path.parent.name:
+                    parent_folder = folder
+                    break
+
             file = FileEntry(
                 name=relative_path.name,
                 name_checksum=zlib.crc32(relative_path.name.lower().encode()),
                 data_checksum=0,
                 name_offset=null_id,
-                parent_folder_id=folders.index(current_folder),
+                parent_folder_id=folders.index(parent_folder),
                 next_file_id=len(files) + 1,
                 flags=0,
                 size=path.stat().st_size,
                 offset=null_id,
-                writetime=datetime.fromtimestamp(path.stat().st_mtime),
+                writetime=datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc),
             )
 
             names.append(relative_path.name)
@@ -162,6 +170,7 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
                     rmdp.write(data)
 
                 file.data_checksum = data_checksum
+
     with Progress(
         SpinnerColumn(), TextColumn("[progress.description]{task.description}")
     ) as progress:
