@@ -2,7 +2,6 @@ import base64
 import json
 import os
 import zlib
-from datetime import datetime
 from pathlib import Path
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
