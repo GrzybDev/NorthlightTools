@@ -1,3 +1,6 @@
+import base64
+import json
+import os
 import zlib
 from datetime import datetime
 from pathlib import Path
@@ -9,11 +12,17 @@ from northlighttools.rmdp.dataclasses.FileEntry import FileEntry
 from northlighttools.rmdp.dataclasses.FolderEntry import FolderEntry
 from northlighttools.rmdp.enums.ArchiveEndianness import ArchiveEndianness
 from northlighttools.rmdp.enums.ArchiveVersion import ArchiveVersion
-from northlighttools.rmdp.helpers import get_parent_folder_path, read_name
+from northlighttools.rmdp.helpers import (
+    CHUNK_SIZE,
+    filetime_to_dt,
+    get_parent_folder_path,
+    read_name,
+)
 
 
 def read_metadata(bin_file: Path) -> Archive:
     result = Archive()
+    unknown_metadata = {}
 
     with bin_file.open("rb") as f:
         result.endianness = ArchiveEndianness(int.from_bytes(f.read(1)))
@@ -29,35 +38,43 @@ def read_metadata(bin_file: Path) -> Archive:
         match result.version:
             case ArchiveVersion.ALAN_WAKE:
                 name_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
-                f.seek(128, 1)
+                unknown_metadata["header_1"] = base64.b64encode(f.read(128)).decode(
+                    "utf-8"
+                )
             case _:
-                f.seek(8, 1)
+                unknown_metadata["header_value_1"] = int.from_bytes(
+                    f.read(8), byteorder=byteorder, signed=False
+                )
                 name_size = int.from_bytes(f.read(4), byteorder="little", signed=False)
-                f.seek(128, 1)
+                unknown_metadata["header_1"] = base64.b64encode(f.read(128)).decode(
+                    "utf-8"
+                )
 
         folders = []
 
-        for _ in range(num_folders):
+        for i in range(num_folders):
             expected_checksum = int.from_bytes(
                 f.read(4), byteorder=byteorder, signed=False
             )
 
             if result.version.value >= ArchiveVersion.QUANTUM_BREAK.value:
-                next_file_id = int.from_bytes(
+                next_folder_id = int.from_bytes(
                     f.read(8), byteorder=byteorder, signed=False
                 )
                 parent_folder_id = int.from_bytes(
                     f.read(8), byteorder=byteorder, signed=False
                 )
             else:
-                next_file_id = int.from_bytes(
+                next_folder_id = int.from_bytes(
                     f.read(4), byteorder=byteorder, signed=False
                 )
                 parent_folder_id = int.from_bytes(
                     f.read(4), byteorder=byteorder, signed=False
                 )
 
-            f.seek(4, 1)
+            unknown_metadata[f"folder_{i}"] = int.from_bytes(
+                f.read(4), byteorder=byteorder, signed=False
+            )
 
             if result.version.value >= ArchiveVersion.QUANTUM_BREAK.value:
                 name_offset = int.from_bytes(
@@ -99,9 +116,9 @@ def read_metadata(bin_file: Path) -> Archive:
                 checksum=expected_checksum,
                 name_offset=name_offset,
                 next_file_id=next_file_id,
-                next_folder_id=next_file_id,
+                next_folder_id=next_folder_id,
                 next_parent_folder_id=next_parent_folder_id,
-                prev_folder_id=parent_folder_id,
+                parent_folder_id=parent_folder_id,
             )
 
             folders.append(entry)
@@ -115,7 +132,7 @@ def read_metadata(bin_file: Path) -> Archive:
             )
 
             if result.version.value >= ArchiveVersion.QUANTUM_BREAK.value:
-                next_file_id = int.from_bytes(
+                next_folder_id = int.from_bytes(
                     f.read(8), byteorder=byteorder, signed=False
                 )
                 parent_folder_id = int.from_bytes(
@@ -129,7 +146,7 @@ def read_metadata(bin_file: Path) -> Archive:
                     f.read(8), byteorder=byteorder, signed=False
                 )
             else:
-                next_file_id = int.from_bytes(
+                next_folder_id = int.from_bytes(
                     f.read(4), byteorder=byteorder, signed=False
                 )
                 parent_folder_id = int.from_bytes(
@@ -151,12 +168,8 @@ def read_metadata(bin_file: Path) -> Archive:
                 result.version.value
                 >= ArchiveVersion.ALAN_WAKE_AMERICAN_NIGHTMARE.value
             ):
-                writetime_bytes = int.from_bytes(
-                    f.read(8), byteorder=byteorder, signed=False
-                )
-                writetime = datetime.fromtimestamp(
-                    (writetime_bytes - 116444736000000000) / 10000000
-                )
+                filetime = int.from_bytes(f.read(8), byteorder=byteorder, signed=False)
+                writetime = filetime_to_dt(filetime)
 
             actual_checksum = zlib.crc32(file_name.lower().encode())
             if actual_checksum != expected_checksum:
@@ -167,7 +180,7 @@ def read_metadata(bin_file: Path) -> Archive:
             entry = FileEntry(
                 name=file_name,
                 parent_folder_id=parent_folder_id,
-                next_file_id=next_file_id,
+                next_file_id=next_folder_id,
                 name_checksum=expected_checksum,
                 data_checksum=file_checksum,
                 name_offset=name_offset,
@@ -186,15 +199,25 @@ def read_metadata(bin_file: Path) -> Archive:
 
         result.files = files
 
+    result.unknown_metadata = unknown_metadata
     return result
 
 
-def extract_rmdp(bin_file: Path, rmdp_file: Path, output_folder: Path | None = None):
+def rmdp_unpack(bin_file: Path, rmdp_file: Path, output_folder: Path | None = None):
     with Progress(
         SpinnerColumn(), TextColumn("[progress.description]{task.description}")
     ) as progress:
         progress.add_task("Parsing archive metadata...")
         archive = read_metadata(bin_file)
+
+        archive_metadata_path = None
+        if output_folder:
+            archive_metadata_path = output_folder / "unknown.json"
+        else:
+            archive_metadata_path = rmdp_file.parent / rmdp_file.stem / "unknown.json"
+
+        archive_metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        archive_metadata_path.write_text(json.dumps(archive.unknown_metadata, indent=4))
 
     with open(rmdp_file, "rb") as rmdp:
         for file in track(archive.files, description="Extracting files..."):
@@ -219,8 +242,7 @@ def extract_rmdp(bin_file: Path, rmdp_file: Path, output_folder: Path | None = N
                 remaining_bytes = file.size
 
                 while remaining_bytes > 0:
-                    # Read max. 4MB chunks
-                    chunk_size = min(4 * 1024 * 1024, remaining_bytes)
+                    chunk_size = min(CHUNK_SIZE, remaining_bytes)
                     chunk = rmdp.read(chunk_size)
                     actual_checksum = zlib.crc32(chunk, actual_checksum)
                     output.write(chunk)
@@ -230,3 +252,8 @@ def extract_rmdp(bin_file: Path, rmdp_file: Path, output_folder: Path | None = N
                     raise ValueError(
                         f"Invalid checksum for file data! Archive may be corrupted. (Expected: {file.data_checksum}, Got: {actual_checksum})"
                     )
+
+            if file.writetime:
+                os.utime(
+                    file_path, (file.writetime.timestamp(), file.writetime.timestamp())
+                )

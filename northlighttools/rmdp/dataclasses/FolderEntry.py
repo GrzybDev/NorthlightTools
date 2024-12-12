@@ -9,4 +9,4 @@ class FolderEntry:
     next_file_id: int
     next_folder_id: int
     next_parent_folder_id: int
-    prev_folder_id: int
+    parent_folder_id: int
