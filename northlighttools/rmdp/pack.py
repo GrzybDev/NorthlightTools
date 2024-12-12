@@ -1,9 +1,10 @@
 import base64
 import json
-import struct
 import zlib
 from datetime import datetime
 from pathlib import Path
+
+from rich.progress import Progress, SpinnerColumn, TextColumn, track
 
 from northlighttools.rmdp.dataclasses.Archive import Archive
 from northlighttools.rmdp.dataclasses.FileEntry import FileEntry
@@ -136,15 +137,20 @@ def index_folder(
 
 
 def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
-    folders, files, names = index_folder(archive, input_dir)
-    names_size = sum(len(name) + 1 for name in names)
+    with Progress(
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}")
+    ) as progress:
+        progress.add_task("Indexing input folder...")
 
-    unknown_metadata = {}
-    with open(input_dir / "unknown.json", "r") as f:
-        unknown_metadata = json.load(f)
+        folders, files, names = index_folder(archive, input_dir)
+        names_size = sum(len(name) + 1 for name in names)
+
+        unknown_metadata = {}
+        with open(input_dir / "unknown.json", "r") as f:
+            unknown_metadata = json.load(f)
 
     with open(output_file.with_suffix(".rmdp"), "wb") as rmdp:
-        for file in files:
+        for file in track(files, description="Packing files..."):
             file.offset = rmdp.tell()
 
             file_path = get_parent_folder_path(folders, file.parent_folder_id) + [
@@ -160,94 +166,106 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
                     rmdp.write(data)
 
                 file.data_checksum = data_checksum
+    with Progress(
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}")
+    ) as progress:
+        progress.add_task("Finalizing...")
 
-    with open(output_file.with_suffix(".bin"), "wb") as f:
-        byteorder = (
-            "little" if archive.endianness == ArchiveEndianness.LITTLE else "big"
-        )
-        write_size = (
-            8 if archive.version.value >= ArchiveVersion.QUANTUM_BREAK.value else 4
-        )
+        with open(output_file.with_suffix(".bin"), "wb") as f:
+            byteorder = (
+                "little" if archive.endianness == ArchiveEndianness.LITTLE else "big"
+            )
+            write_size = (
+                8 if archive.version.value >= ArchiveVersion.QUANTUM_BREAK.value else 4
+            )
 
-        f.write(archive.endianness.value.to_bytes(1))
-        f.write(archive.version.value.to_bytes(4, byteorder=byteorder, signed=False))
-        f.write(len(folders).to_bytes(4, byteorder=byteorder, signed=False))
-        f.write(len(files).to_bytes(4, byteorder=byteorder, signed=False))
-
-        if archive.version.value != ArchiveVersion.ALAN_WAKE.value:
+            f.write(archive.endianness.value.to_bytes(1))
             f.write(
-                int(1).to_bytes(8, byteorder=byteorder, signed=False)
-            )  # unknown_metadata["header_value_1"]
+                archive.version.value.to_bytes(4, byteorder=byteorder, signed=False)
+            )
+            f.write(len(folders).to_bytes(4, byteorder=byteorder, signed=False))
+            f.write(len(files).to_bytes(4, byteorder=byteorder, signed=False))
 
-        f.write(names_size.to_bytes(4, byteorder=byteorder, signed=False))
-        f.write(base64.b64decode(unknown_metadata["header_1"]))
+            if archive.version.value != ArchiveVersion.ALAN_WAKE.value:
+                f.write(
+                    int(1).to_bytes(8, byteorder=byteorder, signed=False)
+                )  # unknown_metadata["header_value_1"]
 
-        for folder in folders:
-            f.write(folder.checksum.to_bytes(4, byteorder=byteorder, signed=False))
-            f.write(
-                folder.next_folder_id.to_bytes(
-                    write_size, byteorder=byteorder, signed=False
+            f.write(names_size.to_bytes(4, byteorder=byteorder, signed=False))
+            f.write(base64.b64decode(unknown_metadata["header_1"]))
+
+            for folder in folders:
+                f.write(folder.checksum.to_bytes(4, byteorder=byteorder, signed=False))
+                f.write(
+                    folder.next_folder_id.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
                 )
-            )
-            f.write(
-                folder.parent_folder_id.to_bytes(
-                    write_size, byteorder=byteorder, signed=False
+                f.write(
+                    folder.parent_folder_id.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
                 )
-            )
 
-            f.write(b"\0" * 4)  # unknown_metadata[f"folder_{i}"]
+                f.write(b"\0" * 4)  # unknown_metadata[f"folder_{i}"]
 
-            f.write(
-                folder.name_offset.to_bytes(
-                    write_size, byteorder=byteorder, signed=False
+                f.write(
+                    folder.name_offset.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
                 )
-            )
 
-            f.write(
-                folder.next_parent_folder_id.to_bytes(
-                    write_size, byteorder=byteorder, signed=False
+                f.write(
+                    folder.next_parent_folder_id.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
                 )
-            )
-            f.write(
-                folder.next_file_id.to_bytes(
-                    write_size, byteorder=byteorder, signed=False
+                f.write(
+                    folder.next_file_id.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
                 )
-            )
 
-        for file in files:
-            f.write(file.name_checksum.to_bytes(4, byteorder=byteorder, signed=False))
-            f.write(
-                file.next_file_id.to_bytes(
-                    write_size, byteorder=byteorder, signed=False
+            for file in files:
+                f.write(
+                    file.name_checksum.to_bytes(4, byteorder=byteorder, signed=False)
                 )
-            )
-            f.write(
-                file.parent_folder_id.to_bytes(
-                    write_size, byteorder=byteorder, signed=False
+                f.write(
+                    file.next_file_id.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
                 )
-            )
-            f.write(file.flags.to_bytes(4, byteorder=byteorder, signed=False))
-            f.write(
-                file.name_offset.to_bytes(write_size, byteorder=byteorder, signed=False)
-            )
-            f.write(file.offset.to_bytes(8, byteorder=byteorder, signed=False))
-            f.write(file.size.to_bytes(8, byteorder=byteorder, signed=False))
-            f.write(file.data_checksum.to_bytes(4, byteorder=byteorder, signed=False))
+                f.write(
+                    file.parent_folder_id.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
+                )
+                f.write(file.flags.to_bytes(4, byteorder=byteorder, signed=False))
+                f.write(
+                    file.name_offset.to_bytes(
+                        write_size, byteorder=byteorder, signed=False
+                    )
+                )
+                f.write(file.offset.to_bytes(8, byteorder=byteorder, signed=False))
+                f.write(file.size.to_bytes(8, byteorder=byteorder, signed=False))
+                f.write(
+                    file.data_checksum.to_bytes(4, byteorder=byteorder, signed=False)
+                )
 
-            if (
-                archive.version.value
-                >= ArchiveVersion.ALAN_WAKE_AMERICAN_NIGHTMARE.value
-            ):
-                timestamp = dt_to_filetime(file.writetime)
-                f.write(timestamp.to_bytes(8, byteorder=byteorder, signed=False))
+                if (
+                    archive.version.value
+                    >= ArchiveVersion.ALAN_WAKE_AMERICAN_NIGHTMARE.value
+                ):
+                    timestamp = dt_to_filetime(file.writetime)
+                    f.write(timestamp.to_bytes(8, byteorder=byteorder, signed=False))
 
-        f.write(b"\0" * 4)
-        f.write(b"\xFF" * write_size)
-        f.write(b"\xFF" * write_size)
-        f.write(b"ctor")
-        f.write(b"\xFF" * write_size)
-        f.write(b"\xFF" * write_size)
-        f.write(b"\xFF" * write_size)
+            f.write(b"\0" * 4)
+            f.write(b"\xFF" * write_size)
+            f.write(b"\xFF" * write_size)
+            f.write(b"ctor")
+            f.write(b"\xFF" * write_size)
+            f.write(b"\xFF" * write_size)
+            f.write(b"\xFF" * write_size)
 
-        for name in names:
-            f.write(name.encode() + b"\0")
+            for name in names:
+                f.write(name.encode() + b"\0")
