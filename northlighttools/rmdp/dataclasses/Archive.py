@@ -13,3 +13,5 @@ class Archive:
 
     folders: list[FolderEntry] = None
     files: list[FileEntry] = None
+
+    unknown_metadata: dict = None
