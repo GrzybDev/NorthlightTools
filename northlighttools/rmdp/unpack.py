@@ -1,5 +1,4 @@
 import base64
-import json
 import os
 import zlib
 from pathlib import Path
@@ -208,15 +207,6 @@ def rmdp_unpack(bin_file: Path, rmdp_file: Path, output_folder: Path | None = No
     ) as progress:
         progress.add_task("Parsing archive metadata...")
         archive = read_metadata(bin_file)
-
-        archive_metadata_path = None
-        if output_folder:
-            archive_metadata_path = output_folder / "unknown.json"
-        else:
-            archive_metadata_path = rmdp_file.parent / rmdp_file.stem / "unknown.json"
-
-        archive_metadata_path.parent.mkdir(parents=True, exist_ok=True)
-        archive_metadata_path.write_text(json.dumps(archive.unknown_metadata, indent=4))
 
     with open(rmdp_file, "rb") as rmdp:
         for file in track(archive.files, description="Extracting files..."):
