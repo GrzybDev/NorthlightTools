@@ -145,10 +145,6 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
         folders, files, names = index_folder(archive, input_dir)
         names_size = sum(len(name) + 1 for name in names)
 
-        unknown_metadata = {}
-        with open(input_dir / "unknown.json", "r") as f:
-            unknown_metadata = json.load(f)
-
     with open(output_file.with_suffix(".rmdp"), "wb") as rmdp:
         for file in track(files, description="Packing files..."):
             file.offset = rmdp.tell()
@@ -187,12 +183,11 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
             f.write(len(files).to_bytes(4, byteorder=byteorder, signed=False))
 
             if archive.version.value != ArchiveVersion.ALAN_WAKE.value:
-                f.write(
-                    int(1).to_bytes(8, byteorder=byteorder, signed=False)
-                )  # unknown_metadata["header_value_1"]
+                f.write(int(1).to_bytes(8, byteorder=byteorder, signed=False))
 
             f.write(names_size.to_bytes(4, byteorder=byteorder, signed=False))
-            f.write(base64.b64decode(unknown_metadata["header_1"]))
+            f.write(b"d:\\data")
+            f.write(b"\0" * 121)
 
             for folder in folders:
                 f.write(folder.checksum.to_bytes(4, byteorder=byteorder, signed=False))
@@ -207,7 +202,7 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
                     )
                 )
 
-                f.write(b"\0" * 4)  # unknown_metadata[f"folder_{i}"]
+                f.write(b"\0" * 4)
 
                 f.write(
                     folder.name_offset.to_bytes(
