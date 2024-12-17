@@ -1,5 +1,6 @@
 from calendar import timegm
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import BinaryIO
 
 from northlighttools.rmdp.dataclasses.FolderEntry import FolderEntry
@@ -34,6 +35,23 @@ def read_name(f: BinaryIO, size: int, offset: int) -> str:
     return result
 
 
+def get_parent_folder(folders: list[FolderEntry], relative_path: Path) -> FolderEntry:
+    parent_folder = None
+
+    for folder in reversed(folders):
+        folder_id = folders.index(folder)
+        folder_path = get_parent_folder_path(folders, folder_id)
+
+        if folder_path:
+            folder_path[0] = folder_path[0].replace(":", "_")
+
+        if folder_path == list(relative_path.parts[:-1]):
+            parent_folder = folder
+            break
+
+    return parent_folder
+
+
 def get_parent_folder_path(folders: list[FolderEntry], folder_id: int) -> list[str]:
     entry = folders[folder_id]
     path = [entry.name]
@@ -42,7 +60,7 @@ def get_parent_folder_path(folders: list[FolderEntry], folder_id: int) -> list[s
         entry.parent_folder_id != 0xFFFFFFFF
         and entry.parent_folder_id != 0xFFFFFFFFFFFFFFFF
     ):
-        path.insert(0, folders[entry.parent_folder_id].name)
         entry = folders[entry.parent_folder_id]
+        path.insert(0, entry.name)
 
     return path[1:]

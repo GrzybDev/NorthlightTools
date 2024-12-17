@@ -12,6 +12,7 @@ from northlighttools.rmdp.enums.ArchiveVersion import ArchiveVersion
 from northlighttools.rmdp.helpers import (
     CHUNK_SIZE,
     dt_to_filetime,
+    get_parent_folder,
     get_parent_folder_path,
 )
 
@@ -47,10 +48,8 @@ def index_folder(
     prev_file_entry = None
 
     for path in sorted(input_dir.rglob("*")):
-        if path == input_dir / "unknown.json":
-            continue
-
         relative_path = path.relative_to(input_dir)
+        parent_folder = get_parent_folder(folders, relative_path)
 
         if path.is_dir():
             if prev_file_entry:
@@ -75,40 +74,30 @@ def index_folder(
             current_folder.name_offset = names_size
             names_size += len(current_folder.name) + 1
 
-            for folder in reversed(folders):
-                if folder.name.replace(":", "_") == relative_path.parent.name:
-                    current_folder.parent_folder_id = folders.index(folder)
-                    current_folder.next_parent_folder_id = len(folders) + 1
+            current_folder.parent_folder_id = folders.index(parent_folder)
+            current_folder.next_parent_folder_id = len(folders) + 1
 
-                    if (
-                        prev_folder_entry
-                        and previous_folder_id >= current_folder.parent_folder_id
-                    ):
-                        folders[
-                            folders.index(prev_folder_entry)
-                        ].next_parent_folder_id = null_id
+            if (
+                prev_folder_entry
+                and previous_folder_id >= current_folder.parent_folder_id
+            ):
+                folders[folders.index(prev_folder_entry)].next_parent_folder_id = (
+                    null_id
+                )
 
-                        root_folder = folders[current_folder.parent_folder_id + 1]
+                root_folder = folders[current_folder.parent_folder_id + 1]
 
-                        while root_folder.next_folder_id != null_id:
-                            root_folder = folders[root_folder.next_folder_id]
+                while root_folder.next_folder_id != null_id:
+                    root_folder = folders[root_folder.next_folder_id]
 
-                        if root_folder.next_folder_id == null_id:
-                            root_folder.next_folder_id = len(folders)
+                if root_folder.next_folder_id == null_id:
+                    root_folder.next_folder_id = len(folders)
 
-                    previous_folder_id = current_folder.parent_folder_id
-                    break
+            previous_folder_id = current_folder.parent_folder_id
 
             folders.append(current_folder)
             prev_folder_entry = current_folder
         else:
-            # Get parent_folder_id of the current file
-            parent_folder = None
-            for folder in reversed(folders):
-                if folder.name.replace(":", "_") == relative_path.parent.name:
-                    parent_folder = folder
-                    break
-
             file = FileEntry(
                 name=relative_path.name,
                 name_checksum=zlib.crc32(relative_path.name.lower().encode()),
@@ -141,7 +130,10 @@ def index_folder(
     folders[-1].next_parent_folder_id = null_id
     files[-1].next_file_id = null_id
 
-    return folders, files, names
+    archive.folders = folders
+    archive.files = files
+
+    return names
 
 
 def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
@@ -150,16 +142,16 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
     ) as progress:
         progress.add_task("Indexing input folder...")
 
-        folders, files, names = index_folder(archive, input_dir)
+        names = index_folder(archive, input_dir)
         names_size = sum(len(name) + 1 for name in names)
 
     with open(output_file.with_suffix(".rmdp"), "wb") as rmdp:
-        for file in track(files, description="Packing files..."):
+        for file in track(archive.files, description="Packing files..."):
             file.offset = rmdp.tell()
 
-            file_path = get_parent_folder_path(folders, file.parent_folder_id) + [
-                file.name
-            ]
+            file_path = get_parent_folder_path(
+                archive.folders, file.parent_folder_id
+            ) + [file.name]
             file_path[0] = file_path[0].replace(":", "_")
 
             with open(input_dir / Path(*file_path), "rb") as input:
@@ -188,8 +180,8 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
             f.write(
                 archive.version.value.to_bytes(4, byteorder=byteorder, signed=False)
             )
-            f.write(len(folders).to_bytes(4, byteorder=byteorder, signed=False))
-            f.write(len(files).to_bytes(4, byteorder=byteorder, signed=False))
+            f.write(len(archive.folders).to_bytes(4, byteorder=byteorder, signed=False))
+            f.write(len(archive.files).to_bytes(4, byteorder=byteorder, signed=False))
 
             if archive.version.value != ArchiveVersion.ALAN_WAKE.value:
                 f.write(int(1).to_bytes(8, byteorder=byteorder, signed=False))
@@ -198,7 +190,7 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
             f.write(b"d:\\data")
             f.write(b"\0" * 121)
 
-            for folder in folders:
+            for folder in archive.folders:
                 f.write(folder.checksum.to_bytes(4, byteorder=byteorder, signed=False))
                 f.write(
                     folder.next_folder_id.to_bytes(
@@ -230,7 +222,7 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
                     )
                 )
 
-            for file in files:
+            for file in archive.files:
                 f.write(
                     file.name_checksum.to_bytes(4, byteorder=byteorder, signed=False)
                 )
