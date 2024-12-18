@@ -138,7 +138,8 @@ def index_folder(
 
 def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
     with Progress(
-        SpinnerColumn(), TextColumn("[progress.description]{task.description}")
+        SpinnerColumn(finished_text="\u2713"),
+        TextColumn("[progress.description]{task.description}"),
     ) as progress:
         progress.add_task("Indexing input folder...")
 
@@ -164,7 +165,8 @@ def rmdp_pack(archive: Archive, input_dir: Path, output_file: Path):
                 file.data_checksum = data_checksum
 
     with Progress(
-        SpinnerColumn(), TextColumn("[progress.description]{task.description}")
+        SpinnerColumn(finished_text="\u2713"),
+        TextColumn("[progress.description]{task.description}"),
     ) as progress:
         progress.add_task("Finalizing...")
 
