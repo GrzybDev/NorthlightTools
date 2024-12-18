@@ -6,6 +6,7 @@ import typer
 from PIL import Image
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from northlighttools.binfnt.enums.FontVersion import FontVersion
 from northlighttools.binfnt.font import BinaryFont
 from northlighttools.binfnt.utilities import convert_r16f_to_bgra8, convert_to_bmfont
 
@@ -69,32 +70,39 @@ def decompile(
         else:
             bitmap_file = input_file.with_suffix(".png")
 
-        cur_task = progress.add_task("Pre-processing texture...")
-        texture = convert_r16f_to_bgra8(BytesIO(binfnt.textureBytes))
-        bitmap = Image.open(BytesIO(texture))
-        progress.update(cur_task, total=1, completed=True)
-
-        if separate_chars:
-            cur_task = progress.add_task("Writing character bitmaps...")
-            char_bitmap_dir = output_dir / "chars"
-            char_bitmap_dir.mkdir(parents=True, exist_ok=True)
-
-            for char in characters:
-                if char.width == 0 or char.height == 0:
-                    continue
-
-                char_bitmap = bitmap.crop(
-                    (char.x, char.y, char.x + char.width, char.y + char.height)
-                )
-                char_bitmap.save(char_bitmap_dir / f"{char.idx}.png")
-
+        if binfnt.version == FontVersion.QUANTUM_BREAK:
+            cur_task = progress.add_task("Processing texture...")
+            texture = convert_r16f_to_bgra8(BytesIO(binfnt.textureBytes))
+            bitmap = Image.open(BytesIO(texture))
             progress.update(cur_task, total=1, completed=True)
+
+            if separate_chars:
+                cur_task = progress.add_task("Writing character bitmaps...")
+                char_bitmap_dir = output_dir / "chars"
+                char_bitmap_dir.mkdir(parents=True, exist_ok=True)
+
+                for char in characters:
+                    if char.width == 0 or char.height == 0:
+                        continue
+
+                    char_bitmap = bitmap.crop(
+                        (char.x, char.y, char.x + char.width, char.y + char.height)
+                    )
+                    char_bitmap.save(char_bitmap_dir / f"{char.idx}.png")
+
+                progress.update(cur_task, total=1, completed=True)
+            else:
+                cur_task = progress.add_task("Writing texture bitmap...")
+
+                with open(bitmap_file, "wb") as f:
+                    bitmap.save(f, "PNG")
+
+                progress.update(cur_task, total=1, completed=True)
         else:
-            cur_task = progress.add_task("Writing texture bitmap...")
-            with open(bitmap_file, "wb") as f:
-                bitmap.save(f, "PNG")
+            cur_task = progress.add_task("Writing texture file...")
 
-            progress.update(cur_task, total=1, completed=True)
+            with open(bitmap_file.with_suffix(".dds"), "wb") as f:
+                f.write(binfnt.textureBytes)
 
 
 if __name__ == "__main__":
