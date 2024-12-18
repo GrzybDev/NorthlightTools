@@ -107,26 +107,13 @@ def convert_r16f_to_bgra8(texture: BytesIO) -> bytes:
     converted.write(BGRA8_HEADER[24:])
 
     # Convert R16F to BGRA8
-    for i in range(textureWidth * textureHeight):
-        # hi = texture.read(1)
-        # lo = texture.read(1)
-
-        # To two-byte float
-        data = texture.read(2)
-        hGray = np.frombuffer(data, dtype=np.float16)[0]
-
-        if np.isnan(hGray):
-            hGray = 255
+    for _ in range(textureWidth * textureHeight):
+        hGray = np.frombuffer(texture.read(2), dtype=np.float16)[0]
+        hGray = np.nan_to_num(hGray, nan=255)
 
         # normalize alpha to [-9,9]
-        tmp = ((9 - hGray) * 255) / 18
-
-        if tmp > 255:
-            tmp = 255
-        elif tmp < 0:
-            tmp = 0
-
-        alpha = int(tmp)
+        normalized_value = ((9 - hGray) * 255) / 18
+        alpha = int(np.clip(normalized_value, 0, 255))
 
         if alpha > 0:
             converted.write(pack("BBBB", 255, 255, 255, alpha))
