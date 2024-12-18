@@ -203,7 +203,8 @@ def read_metadata(bin_file: Path) -> Archive:
 
 def rmdp_unpack(bin_file: Path, rmdp_file: Path, output_folder: Path | None = None):
     with Progress(
-        SpinnerColumn(), TextColumn("[progress.description]{task.description}")
+        SpinnerColumn(finished_text="\u2713"),
+        TextColumn("[progress.description]{task.description}"),
     ) as progress:
         progress.add_task("Parsing archive metadata...")
         archive = read_metadata(bin_file)
