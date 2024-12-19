@@ -31,16 +31,23 @@ def decompile(
         cur_task = progress.add_task("Decompiling...")
 
         with open(input_file, "rb") as f:
-            binfnt = BinaryFont(reader=f)
+            binfnt = BinaryFont(f)
             characters, kernings = convert_to_bmfont(binfnt)
 
         progress.update(cur_task, total=1, completed=True)
 
+        fnt_suffix = ".fnt"
+        bitmap_suffix = (
+            ".png" if binfnt.version == FontVersion.QUANTUM_BREAK else ".dds"
+        )
+
         if output_dir:
             output_dir.mkdir(parents=True, exist_ok=True)
-            fnt_file = output_dir / input_file.with_suffix(".fnt").name
+            fnt_file = output_dir / input_file.with_suffix(fnt_suffix).name
+            bitmap_file = output_dir / input_file.with_suffix(bitmap_suffix).name
         else:
-            fnt_file = input_file.with_suffix(".fnt")
+            fnt_file = input_file.with_suffix(fnt_suffix)
+            bitmap_file = input_file.with_suffix(bitmap_suffix)
 
         cur_task = progress.add_task("Writing BMFont file...")
         with open(fnt_file, "w") as f:
@@ -48,7 +55,7 @@ def decompile(
             f.write(
                 f"common lineHeight={binfnt.lineHeight} base=0 scaleW={binfnt.textureWidth} scaleH={binfnt.textureHeight} pages=1\n"
             )
-            f.write(f'page id=0 file="{input_file.with_suffix(".png").name}"\n')
+            f.write(f'page id=0 file="{bitmap_file.name}"\n')
             f.write(f"chars count={len(characters)}\n")
 
             for char in characters:
@@ -64,11 +71,6 @@ def decompile(
                 )
 
         progress.update(cur_task, total=1, completed=True)
-
-        if output_dir:
-            bitmap_file = output_dir / input_file.with_suffix(".png").name
-        else:
-            bitmap_file = input_file.with_suffix(".png")
 
         if binfnt.version == FontVersion.QUANTUM_BREAK:
             cur_task = progress.add_task("Processing texture...")
@@ -101,7 +103,7 @@ def decompile(
         else:
             cur_task = progress.add_task("Writing texture file...")
 
-            with open(bitmap_file.with_suffix(".dds"), "wb") as f:
+            with open(bitmap_file, "wb") as f:
                 f.write(binfnt.textureBytes)
 
 

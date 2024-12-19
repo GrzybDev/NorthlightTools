@@ -29,10 +29,10 @@ def convert_binfnt_char_to_char_entry(
 
     return CharacterEntry(
         idx=None,
-        x=point.x,
-        y=point.y,
-        width=point.width,
-        height=point.height,
+        x=int(round(point.x, 2)),
+        y=int(round(point.y, 2)),
+        width=int(round(point.width, 2)),
+        height=int(round(point.height, 2)),
         xoffset=orig_char.bearingX1_1 * size,
         yoffset=lineHeight - orig_char.bearingY2_1 * size - point.height,
         xadvance=None,
