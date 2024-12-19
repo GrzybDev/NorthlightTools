@@ -1,6 +1,6 @@
 import os
 from io import BufferedReader, BufferedWriter
-from struct import unpack
+from struct import pack, unpack
 
 import numpy as np
 
@@ -139,3 +139,101 @@ class BinaryFont:
 
         self.fontSize = max(set(sizes), key=sizes.count)
         self.lineHeight = max(set(lineHeights), key=lineHeights.count)
+
+    def write(self, writer: BufferedWriter):
+        writer.write(self.version.value.to_bytes(4, "little", signed=False))
+
+        self.__write_char_block(writer)
+        self.__write_unknown_block(writer)
+        self.__write_advance_block(writer)
+        self.__write_id_block(writer)
+        self.__write_kernel_block(writer)
+
+        self.__write_texture(writer)
+
+    def __write_char_block(self, writer: BufferedWriter):
+        writer.write((len(self.characters) * 4).to_bytes(4, "little", signed=False))
+        for char in self.characters:
+            writer.write(pack("f", char.bearingX1_1))
+            writer.write(pack("f", char.bearingY2_1))
+            writer.write(pack("f", char.xMin_1))
+            writer.write(pack("f", char.yMax_1))
+            writer.write(pack("f", char.bearingX2_1))
+            writer.write(pack("f", char.bearingY2_2))
+            writer.write(pack("f", char.xMax_1))
+            writer.write(pack("f", char.yMax_2))
+            writer.write(pack("f", char.bearingX2_2))
+            writer.write(pack("f", char.bearingY1_1))
+            writer.write(pack("f", char.xMax_2))
+            writer.write(pack("f", char.yMin_1))
+            writer.write(pack("f", char.bearingX1_2))
+            writer.write(pack("f", char.bearingY1_2))
+            writer.write(pack("f", char.xMin_2))
+            writer.write(pack("f", char.yMin_2))
+
+    def __write_unknown_block(self, writer: BufferedWriter):
+        writer.write((len(self.unknown) * 6).to_bytes(4, "little", signed=False))
+
+        last_entry = None
+
+        for i in range(len(self.characters)):
+            # If we reached the end of the unknown list, write the last unknown entry till the end
+            if last_entry == self.unknown[-1]:
+                writer.write(pack("H", self.unknown[-1].n1))
+                writer.write(pack("H", self.unknown[-1].n2))
+                writer.write(pack("H", self.unknown[-1].n3))
+                writer.write(pack("H", self.unknown[-1].n4))
+                writer.write(pack("H", self.unknown[-1].n5))
+                writer.write(pack("H", self.unknown[-1].n6))
+            else:
+                writer.write(pack("H", self.unknown[i].n1))
+                writer.write(pack("H", self.unknown[i].n2))
+                writer.write(pack("H", self.unknown[i].n3))
+                writer.write(pack("H", self.unknown[i].n4))
+                writer.write(pack("H", self.unknown[i].n5))
+                writer.write(pack("H", self.unknown[i].n6))
+                last_entry = self.unknown[i]
+
+    def __write_advance_block(self, writer: BufferedWriter):
+        writer.write(len(self.advance).to_bytes(4, "little", signed=False))
+
+        for advance in self.advance:
+            writer.write(pack("H", advance.plus4))
+            writer.write(pack("H", advance.num4))
+            writer.write(pack("H", advance.plus6))
+            writer.write(pack("H", advance.num6))
+            writer.write(pack("I", advance.chnl))
+            writer.write(pack("f", advance.xadvance1_1))
+            writer.write(pack("f", advance.yoffset1_1))
+            writer.write(pack("f", advance.xadvance2_1))
+            writer.write(pack("f", advance.yoffset1_2))
+            writer.write(pack("f", advance.xadvance2_2))
+            writer.write(pack("f", advance.yoffset2_1))
+            writer.write(pack("f", advance.xadvance1_2))
+            writer.write(pack("f", advance.yoffset2_2))
+
+    def __write_id_block(self, writer: BufferedWriter):
+        id_table = np.zeros(0xFFFF + 1, dtype=np.uint16)
+        base_id = 0
+
+        for idx in self.ids:
+            id_table[idx] = base_id
+            base_id += 1
+
+        for idx in id_table.tolist():
+            writer.write(idx.to_bytes(2, "little", signed=False))
+
+    def __write_kernel_block(self, writer: BufferedWriter):
+        writer.write(len(self.kerning).to_bytes(4, "little", signed=False))
+
+        for kerning in self.kerning:
+            writer.write(pack("2H", kerning.first, kerning.second))
+            writer.write(pack("f", kerning.amount))
+
+    def __write_texture(self, writer: BufferedWriter):
+        if self.version in [FontVersion.ALAN_WAKE, FontVersion.ALAN_WAKE_REMASTERED]:
+            writer.write(len(self.textureBytes).to_bytes(4, "little", signed=False))
+        elif self.version == FontVersion.QUANTUM_BREAK:
+            writer.write(self.textureUnknownVal)
+
+        writer.write(self.textureBytes)
