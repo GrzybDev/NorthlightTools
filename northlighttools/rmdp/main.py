@@ -44,7 +44,7 @@ def pack(
     input_dir: Annotated[
         Path, typer.Argument(exists=True, file_okay=False, readable=True)
     ],
-    output_file: Annotated[Path, typer.Argument(writable=True)] = None,
+    output_file: Annotated[Path, typer.Argument(writable=True)],
     archive_endianness: Annotated[
         ArchiveEndiannessChoice, typer.Option(case_sensitive=False)
     ] = None,
