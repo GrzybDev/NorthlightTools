@@ -4,10 +4,10 @@ from dataclasses import dataclass
 @dataclass
 class CharacterEntry:
     idx: None
-    x: float
-    y: float
-    width: float
-    height: float
+    x: int
+    y: int
+    width: int
+    height: int
     xoffset: float
     yoffset: float
     xadvance: float

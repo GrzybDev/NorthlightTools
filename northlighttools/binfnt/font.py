@@ -2,6 +2,8 @@ import os
 from io import BufferedReader, BufferedWriter
 from struct import unpack
 
+import numpy as np
+
 from northlighttools.binfnt.dataclasses.Advance import Advance
 from northlighttools.binfnt.dataclasses.Character import Character
 from northlighttools.binfnt.dataclasses.Kernel import Kernel
@@ -26,12 +28,9 @@ class BinaryFont:
     fontSize: float = 0
     lineHeight: float = 0
 
-    def __init__(self, **kwargs):
-        if "reader" in kwargs:
-            self.reader: BufferedReader = kwargs["reader"]
-            self.parse()
-        elif "writer" in kwargs:
-            self.writer: BufferedWriter = kwargs["writer"]
+    def __init__(self, reader):
+        self.reader: BufferedReader = reader
+        self.parse()
 
     def parse(self):
         self.version = FontVersion(
@@ -44,7 +43,7 @@ class BinaryFont:
         self.__read_id_block()
         self.__read_kernel_block()
 
-        self.__read_textures()
+        self.__read_texture()
 
     def __read_char_block(self):
         char_count = int.from_bytes(self.reader.read(4), "little", signed=False) // 4
@@ -84,33 +83,26 @@ class BinaryFont:
         self.ids.insert(0, self.ids[0] - 1)
 
     def __read_kernel_block(self):
-        match self.version:
-            case FontVersion.QUANTUM_BREAK:
-                self.__read_kernel_block_v7()
-            case FontVersion.ALAN_WAKE_REMASTERED:
-                self.__read_kernel_block_v4()
-
-    def __read_kernel_block_v7(self):
         kerns_count = int.from_bytes(self.reader.read(4), "little", signed=False)
 
+        if self.version == FontVersion.QUANTUM_BREAK:
+            format_str = "2Hf"
+            read_size = 2 * 2 + 4
+        elif self.version == FontVersion.ALAN_WAKE_REMASTERED:
+            format_str = "2If"
+            read_size = 2 * 4 + 4
+        else:
+            raise ValueError("Unsupported font version")
+
         for _ in range(kerns_count):
-            kern_vals = unpack("2Hf", self.reader.read(2 * 2 + 4))
+            kern_vals = unpack(format_str, self.reader.read(read_size))
             self.kerning.append(Kernel(*kern_vals))
 
-    def __read_kernel_block_v4(self):
-        kerns_count = int.from_bytes(self.reader.read(4), "little", signed=False)
-
-        for _ in range(kerns_count):
-            kern_vals = unpack("2If", self.reader.read(2 * 4 + 4))
-            self.kerning.append(Kernel(*kern_vals))
-
-    def __read_textures(self):
+    def __read_texture(self):
         if self.version in [FontVersion.ALAN_WAKE, FontVersion.ALAN_WAKE_REMASTERED]:
             textureSize = int.from_bytes(self.reader.read(4), "little", signed=False)
         elif self.version == FontVersion.QUANTUM_BREAK:
-            textureUnknownVal = int.from_bytes(
-                self.reader.read(8), "little", signed=False
-            )
+            self.textureUnknownVal = self.reader.read(8)
 
         texturePos = self.reader.tell()
         self.reader.seek(12, os.SEEK_CUR)
