@@ -185,7 +185,7 @@ def compile(
                 compiled_bitmap = Image.new(
                     "RGBA",
                     (binfnt.textureWidth, binfnt.textureHeight),
-                    (255, 255, 255, 255),
+                    (255, 255, 255, 127),
                 )
 
                 for i, char in enumerate(binfnt.characters):
