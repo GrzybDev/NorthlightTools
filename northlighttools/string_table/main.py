@@ -32,7 +32,7 @@ def cmd_export(
 
         for _ in range(strings_count):
             key_len = int.from_bytes(f.read(4), "little", signed=False)
-            key = f.read(key_len).decode("ascii")
+            key = f.read(key_len).decode("utf-8")
 
             str_len = int.from_bytes(f.read(4), "little", signed=False)
             value = f.read(str_len * 2).decode("utf-16le")
