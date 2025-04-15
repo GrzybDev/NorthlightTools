@@ -13,7 +13,14 @@ def write_xml(strings: list[String], output_path: Path):
     root_node = ET.Element("string_table")
 
     for string in strings:
-        ET.SubElement(root_node, "string", {"key": string.key, "value": string.value})
+        ET.SubElement(
+            root_node,
+            "string",
+            {
+                "key": string.key,
+                "value": string.value.replace("\r\n", "").replace("\\n", "\n"),
+            },
+        )
 
     final_xml = ET.tostring(root_node, encoding="utf-16le", method="xml").decode(
         "utf-16le"
@@ -30,7 +37,7 @@ def write_json(strings: list[String], output_path: Path):
         if string.key in data and data[string.key] != string.value:
             raise ValueError(f"Duplicate key: {string.key}")
 
-        data[string.key] = string.value
+        data[string.key] = string.value.replace("\r\n", "").replace("\\n", "\n")
 
     with open(output_path, "w", encoding="utf-16le") as f:
         json.dump(data, f, indent=4)
@@ -47,7 +54,9 @@ def write_csv(strings: list[String], output_path: Path):
             writer.writerow(
                 {
                     "Key": string.key,
-                    "SourceString": string.value,
+                    "SourceString": string.value.replace("\r\n", "").replace(
+                        "\\n", "\n"
+                    ),
                     "TranslatedString": "",
                 }
             )
@@ -57,6 +66,11 @@ def write_po(strings: list[String], output_path: Path):
     po = POFile()
 
     for string in strings:
-        po.append(POEntry(msgctxt=string.key, msgid=string.value))
+        po.append(
+            POEntry(
+                msgctxt=string.key,
+                msgid=string.value.replace("\r\n", "").replace("\\n", "\n"),
+            )
+        )
 
     po.save(output_path)
