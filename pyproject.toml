@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "northlighttools"
-version = "1.0.1"
+version = "1.0.2"
 description = "Collection of various tools for Northlight Engine used for Polish fan translation of Quantum Break!"
 authors = ["Marek Grzyb <marek@grzyb.dev>"]
 readme = "README.md"
