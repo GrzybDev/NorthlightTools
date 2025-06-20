@@ -14,6 +14,8 @@ dependencies = [
 [tool.poetry]
 packages = [{include = "northlighttools", from = "src"}]
 
+[tool.poetry.scripts]
+northlighttools = "northlighttools:app"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
