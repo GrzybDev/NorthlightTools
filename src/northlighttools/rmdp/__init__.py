@@ -67,6 +67,40 @@ def info(
             typer.echo(f"  {key}: {value}")
 
 
+@app.command(help="Lists files in a Remedy Package")
+def list_files(
+    archive_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the input .bin/.rmdp file",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ],
+):
+    bin_path = archive_path.with_suffix(".bin")
+    rmdp_path = archive_path.with_suffix(".rmdp")
+
+    missing = [str(p) for p in [bin_path, rmdp_path] if not p.exists()]
+    if missing:
+        raise typer.BadParameter(
+            f"Cannot list files in {archive_path} because the following required file(s) are missing: {', '.join(missing)}"
+        )
+
+    with Progress(transient=True) as progress:
+        progress.add_task(
+            description="Reading package metadata...",
+            total=None,
+        )
+        package = Package(header_path=bin_path)
+
+    for file in package.files:
+        file_path = package.get_file_path(file)
+        typer.echo(f"{file_path} (Size: {file.size} bytes, Offset: {file.offset})")
+
+
 @app.command(help="Extracts a Remedy Package")
 def extract(
     archive_path: Annotated[
