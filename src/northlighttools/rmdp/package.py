@@ -18,6 +18,14 @@ from northlighttools.rmdp.helpers import (
 class Package:
 
     @property
+    def endianness(self) -> str:
+        return self.__endianness.name.capitalize()
+
+    @property
+    def version(self) -> PackageVersion:
+        return self.__version
+
+    @property
     def __byteorder(self) -> str:
         return self.__endianness.value
 
@@ -32,6 +40,10 @@ class Package:
     @property
     def files(self) -> list[FileEntry]:
         return self.__files
+
+    @property
+    def unknown_data(self) -> dict[str, bytes | int]:
+        return self.__unknown_data
 
     @property
     def __null_id(self) -> int:
