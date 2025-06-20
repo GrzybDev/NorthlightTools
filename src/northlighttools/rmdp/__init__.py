@@ -18,6 +18,55 @@ from northlighttools.rmdp.package import Package
 app = typer.Typer(help="Tools for Remedy Packages (.bin/.rmdp files)")
 
 
+@app.command(help="Prints information about a Remedy Package")
+def info(
+    archive_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the input .bin/.rmdp file",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ],
+    print_unknown_metadata: Annotated[
+        bool,
+        typer.Option(
+            "--print-unknown-metadata",
+            "-u",
+            is_flag=True,
+            help="Print unknown metadata from the package header",
+        ),
+    ] = False,
+):
+    bin_path = archive_path.with_suffix(".bin")
+    rmdp_path = archive_path.with_suffix(".rmdp")
+
+    missing = [str(p) for p in [bin_path, rmdp_path] if not p.exists()]
+    if missing:
+        raise typer.BadParameter(
+            f"Cannot read {archive_path} because the following required file(s) are missing: {', '.join(missing)}"
+        )
+
+    with Progress(transient=True) as progress:
+        progress.add_task(
+            description="Reading package metadata...",
+            total=None,
+        )
+        package = Package(header_path=bin_path)
+
+    typer.echo(f"Endianness: {package.endianness}")
+    typer.echo(f"Version: {package.version.name} ({package.version.value})")
+    typer.echo(f"Number of folders: {len(package.folders)}")
+    typer.echo(f"Number of files: {len(package.files)}")
+
+    if print_unknown_metadata:
+        typer.echo("Unknown metadata:")
+        for key, value in package.unknown_data.items():
+            typer.echo(f"  {key}: {value}")
+
+
 @app.command(help="Extracts a Remedy Package")
 def extract(
     archive_path: Annotated[
