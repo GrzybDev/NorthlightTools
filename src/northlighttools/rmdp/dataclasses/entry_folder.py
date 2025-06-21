@@ -11,3 +11,6 @@ class FolderEntry:
     next_folder_id: int
     next_parent_folder_id: int
     parent_folder_id: int
+
+    def __hash__(self) -> int:
+        return hash(self.checksum)
