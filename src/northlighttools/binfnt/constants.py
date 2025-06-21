@@ -1,0 +1,1 @@
+CHARS_FOLDER = "chars"
