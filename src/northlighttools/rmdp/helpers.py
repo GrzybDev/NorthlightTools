@@ -1,4 +1,5 @@
 import os
+from calendar import timegm
 from datetime import datetime, timezone
 
 from northlighttools.rmdp.constants import EPOCH_AS_FILETIME, HUNDREDS_OF_NANOSECONDS
@@ -44,3 +45,8 @@ def filetime_to_dt(ft: int) -> datetime:
     s, ns100 = divmod(ft - EPOCH_AS_FILETIME, HUNDREDS_OF_NANOSECONDS)
     # Convert to datetime object, with remainder as microseconds.
     return datetime.fromtimestamp(s, tz=timezone.utc).replace(microsecond=(ns100 // 10))
+
+
+def dt_to_filetime(dt: datetime) -> int:
+    filetime = EPOCH_AS_FILETIME + (timegm(dt.timetuple()) * HUNDREDS_OF_NANOSECONDS)
+    return filetime + (dt.microsecond * 10)
