@@ -1,13 +1,16 @@
 import os
 import zlib
-from io import BufferedReader
+from datetime import datetime, timezone
+from io import BufferedReader, BufferedWriter
 from pathlib import Path
 
 from northlighttools.rmdp.constants import CHUNK_SIZE
 from northlighttools.rmdp.dataclasses.entry_file import FileEntry
 from northlighttools.rmdp.dataclasses.entry_folder import FolderEntry
+from northlighttools.rmdp.enumerators.endianness import Endianness
 from northlighttools.rmdp.enumerators.package_version import PackageVersion
 from northlighttools.rmdp.helpers import (
+    dt_to_filetime,
     filetime_to_dt,
     get_endianness,
     get_package_version,
@@ -21,9 +24,17 @@ class Package:
     def endianness(self) -> str:
         return self.__endianness.name.capitalize()
 
+    @endianness.setter
+    def endianness(self, value: Endianness):
+        self.__endianness = value
+
     @property
     def version(self) -> PackageVersion:
         return self.__version
+
+    @version.setter
+    def version(self, value: PackageVersion):
+        self.__version = value
 
     @property
     def __byteorder(self) -> str:
@@ -59,6 +70,9 @@ class Package:
 
     def __read_int(self, f, size: int, byteorder: str | None = None) -> int:
         return int.from_bytes(f.read(size), byteorder=byteorder or self.__byteorder)  # type: ignore
+
+    def __write_int(self, f, value: int, size: int, byteorder: str | None = None):
+        f.write(value.to_bytes(size, byteorder=byteorder or self.__byteorder))  # type: ignore
 
     def __read_folder_entry(self, f) -> FolderEntry:
         expected_checksum = self.__read_int(f, 4)
@@ -200,3 +214,223 @@ class Package:
         if file.write_time:
             ts = file.write_time.timestamp()
             os.utime(output_path, (ts, ts))
+
+    def __create_root_folder(self):
+        """Create a root folder entry with default values."""
+        self.__folders = []
+        self.__files = []
+
+        self.__folders.append(
+            FolderEntry(
+                name="",
+                checksum=0,
+                flags=0,
+                name_offset=self.__null_id,
+                next_file_id=self.__null_id,
+                next_folder_id=self.__null_id,
+                next_parent_folder_id=self.__null_id,
+                parent_folder_id=self.__null_id,
+            )
+        )
+
+    def get_folder_entry(self, path: Path) -> FolderEntry:
+        if path == Path("."):
+            # If the path is just a single part, return the root folder
+            return self.__folders[0]
+
+        for folder in self.__folders:
+            # Iterate through folders to find the one matching the path
+            folder_path = self.get_folder_path(folder)
+
+            if folder_path == path:
+                return folder
+        else:
+            raise ValueError(f"Folder not found for path: {path}")
+
+    def get_child_folders(self, entry: FolderEntry) -> list[FolderEntry]:
+        # Find all folders that are children of the specified folder entry
+
+        result = []
+
+        for folder in self.__folders:
+            if folder.parent_folder_id == self.__folders.index(entry):
+                result.append(folder)
+
+        return result
+
+    def add_folder(self, path: Path):
+        folder_name = path.name
+
+        if path.parent == Path("."):
+            # If the parent is empty, create the root folder
+            self.__create_root_folder()
+
+            folder_name = (
+                folder_name.replace("_", ":")
+                if len(self.__folders) == 1
+                else folder_name
+            )
+
+        parent_folder = self.get_folder_entry(path.parent)
+
+        child_folders = self.get_child_folders(parent_folder)
+        last_child_folder = child_folders[-1] if child_folders else None
+
+        if last_child_folder:
+            last_child_folder.next_folder_id = len(self.__folders)
+        else:
+            parent_folder.next_parent_folder_id = len(self.__folders)
+
+        entry = FolderEntry(
+            name=folder_name,
+            checksum=zlib.crc32(folder_name.lower().encode()),
+            flags=0,
+            name_offset=self.__null_id,
+            next_file_id=self.__null_id,
+            next_folder_id=self.__null_id,
+            next_parent_folder_id=self.__null_id,
+            parent_folder_id=self.__folders.index(parent_folder),
+        )
+
+        self.__folders.append(entry)
+
+    def get_child_files(self, entry: FolderEntry) -> list[FileEntry]:
+        # Find all files that are children of the specified folder entry
+        result = []
+
+        for file in self.__files:
+            if file.parent_folder_id == self.__folders.index(entry):
+                result.append(file)
+
+        return result
+
+    def add_file(self, writer: BufferedWriter, real_path: Path, pkg_path: Path):
+        parent_folder = self.get_folder_entry(pkg_path.parent)
+
+        child_files = self.get_child_files(parent_folder)
+        last_child_file = child_files[-1] if child_files else None
+
+        if last_child_file:
+            last_child_file.next_file_id = len(self.__files)
+        else:
+            parent_folder.next_file_id = len(self.__files)
+
+        file_offset = writer.tell()
+        file_size = real_path.stat().st_size
+        file_write_time = datetime.fromtimestamp(
+            real_path.stat().st_mtime, tz=timezone.utc
+        )
+
+        data_checksum = 0
+
+        with real_path.open("rb") as f:
+            remaining_bytes = file_size
+
+            while remaining_bytes > 0:
+                chunk_size = min(remaining_bytes, CHUNK_SIZE)
+                chunk = f.read(chunk_size)
+
+                if not chunk:
+                    raise ValueError(
+                        f"Unexpected end of file while reading {pkg_path.name}. "
+                        f"Expected {file_size} bytes, but got {file_size - remaining_bytes + chunk_size} bytes."
+                    )
+
+                writer.write(chunk)
+
+                data_checksum = zlib.crc32(chunk, data_checksum)
+                remaining_bytes -= len(chunk)
+
+        entry = FileEntry(
+            name=pkg_path.name,
+            parent_folder_id=self.__folders.index(parent_folder),
+            next_file_id=self.__null_id,
+            name_checksum=zlib.crc32(pkg_path.name.lower().encode()),
+            data_checksum=data_checksum,
+            name_offset=self.__null_id,
+            flags=0,
+            size=file_size,
+            offset=file_offset,
+            write_time=file_write_time,
+        )
+
+        self.__files.append(entry)
+
+    def __build_names_block(self) -> bytes:
+        names_block = b""
+
+        for folder in self.__folders:
+            if not folder.name:
+                # Skip empty folder names
+                continue
+
+            folder.name_offset = len(names_block)
+            names_block += folder.name.encode() + b"\x00"
+
+            files = self.get_child_files(folder)
+            if not files:
+                # If there are no files in this folder, continue to the next folder
+                continue
+
+            for file in files:
+                if not file.name:
+                    # Skip empty file names
+                    continue
+
+                file.name_offset = len(names_block)
+                names_block += file.name.encode() + b"\x00"
+
+        return names_block
+
+    def __write_folder_entry(self, writer: BufferedWriter, folder: FolderEntry):
+        self.__write_int(writer, folder.checksum, 4)
+        self.__write_int(writer, folder.next_folder_id, self.__readsize)
+        self.__write_int(writer, folder.parent_folder_id, self.__readsize)
+        self.__write_int(writer, folder.flags, 4)
+        self.__write_int(writer, folder.name_offset, self.__readsize)
+        self.__write_int(writer, folder.next_parent_folder_id, self.__readsize)
+        self.__write_int(writer, folder.next_file_id, self.__readsize)
+
+    def __write_file_entry(self, writer: BufferedWriter, file: FileEntry):
+        self.__write_int(writer, file.name_checksum, 4)
+        self.__write_int(writer, file.next_file_id, self.__readsize)
+        self.__write_int(writer, file.parent_folder_id, self.__readsize)
+        self.__write_int(writer, file.flags, 4)
+        self.__write_int(writer, file.name_offset, self.__readsize)
+        self.__write_int(writer, file.offset, 8)
+        self.__write_int(writer, file.size, 8)
+        self.__write_int(writer, file.data_checksum, 4)
+
+        if self.__version.value >= PackageVersion.ALAN_WAKE_AMERICAN_NIGHTMARE.value:
+            ts = file.write_time if file.write_time else datetime.now()
+            filetime = dt_to_filetime(ts)
+
+            self.__write_int(writer, filetime, 8)
+
+    def build_header(self, writer: BufferedWriter):
+        names_block = self.__build_names_block()
+
+        writer.write(list(Endianness).index(self.__endianness).to_bytes(1))
+        self.__write_int(writer, int(self.__version), 4)
+        self.__write_int(writer, len(self.__folders), 4)
+        self.__write_int(writer, len(self.__files), 4)
+
+        if self.__version != PackageVersion.ALAN_WAKE:
+            self.__write_int(writer, 1, 8)
+
+        self.__write_int(writer, len(names_block), 4)
+
+        writer.write(b"d:\\data")
+        writer.write(b"\0" * 121)
+
+        for folder in self.__folders:
+            self.__write_folder_entry(writer, folder)
+
+        for file in self.__files:
+            self.__write_file_entry(writer, file)
+
+        self.__write_int(writer, 0, 4)
+        writer.write(b"\xff" * (self.__readsize * 2))
+        writer.write(b"ctor")
+        writer.write(b"\xff" * (self.__readsize * 3))
+        writer.write(names_block)

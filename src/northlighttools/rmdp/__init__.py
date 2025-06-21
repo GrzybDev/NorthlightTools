@@ -13,6 +13,8 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from northlighttools.rmdp.enumerators.endianness import Endianness
+from northlighttools.rmdp.enumerators.package_version import PackageVersion
 from northlighttools.rmdp.package import Package
 
 app = typer.Typer(help="Tools for Remedy Packages (.bin/.rmdp files)")
@@ -176,6 +178,106 @@ def extract(
                     file,
                     output_path,
                 )
+
+
+@app.command(help="Package files into a Remedy Package")
+def pack(
+    input_dir: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the input directory containing files to package",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+        ),
+    ],
+    output_path: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Path to where the output .bin/.rmdp file will be created",
+            file_okay=True,
+            dir_okay=False,
+            writable=True,
+        ),
+    ] = None,
+    endianness: Annotated[
+        Endianness,
+        typer.Option(
+            "--endianness",
+            "-e",
+            help="Endianness of the package (little or big)",
+            case_sensitive=False,
+        ),
+    ] = Endianness.LITTLE,
+    version: Annotated[
+        PackageVersion,
+        typer.Option(
+            "--version",
+            "-v",
+            help="Version of the package",
+        ),
+    ] = PackageVersion.QUANTUM_BREAK,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            is_flag=True,
+            help="Enable verbose output",
+        ),
+    ] = False,
+):
+    output_dir = output_path or input_dir.parent / f"{input_dir.name}.rmdp"
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+
+    bin_path = output_dir.with_suffix(".bin")
+    rmdp_path = output_dir.with_suffix(".rmdp")
+
+    progress = Progress(
+        SpinnerColumn(finished_text="\u2713"),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+    )
+
+    package = Package()
+    package.endianness = endianness
+    package.version = version
+
+    with progress:
+        with rmdp_path.open("wb") as rmdp_file:
+            for path in progress.track(
+                sorted(input_dir.rglob("*")),
+                description="Creating package...",
+            ):
+                if path.is_dir():
+                    if verbose:
+                        progress.console.log(
+                            f"Adding folder: {path.relative_to(input_dir)}..."
+                        )
+
+                    package.add_folder(path.relative_to(input_dir))
+                elif path.is_file():
+                    if verbose:
+                        progress.console.log(
+                            f"Adding file: {path.relative_to(input_dir)}..."
+                        )
+
+                    package.add_file(rmdp_file, path, path.relative_to(input_dir))
+
+            rmdp_file.close()
+
+    with Progress(transient=True) as progress:
+        progress.add_task(
+            description="Building package metadata...",
+            total=None,
+        )
+
+        with bin_path.open("wb") as bin_file:
+            package.build_header(bin_file)
 
 
 if __name__ == "__main__":
