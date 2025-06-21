@@ -220,43 +220,24 @@ class Package:
         self.__folders = []
         self.__files = []
 
-        self.__folders.append(
-            FolderEntry(
-                name="",
-                checksum=0,
-                flags=0,
-                name_offset=self.__null_id,
-                next_file_id=self.__null_id,
-                next_folder_id=self.__null_id,
-                next_parent_folder_id=self.__null_id,
-                parent_folder_id=self.__null_id,
-            )
+        self.__folder_path_map = {}
+        self.__folder_children_map = {}
+        self.__file_children_map = {}
+
+        root_folder = FolderEntry(
+            name="",
+            checksum=0,
+            flags=0,
+            name_offset=self.__null_id,
+            next_file_id=self.__null_id,
+            next_folder_id=self.__null_id,
+            next_parent_folder_id=self.__null_id,
+            parent_folder_id=self.__null_id,
         )
 
-    def get_folder_entry(self, path: Path) -> FolderEntry:
-        if path == Path("."):
-            # If the path is just a single part, return the root folder
-            return self.__folders[0]
-
-        for folder in self.__folders:
-            # Iterate through folders to find the one matching the path
-            folder_path = self.get_folder_path(folder)
-
-            if folder_path == path:
-                return folder
-        else:
-            raise ValueError(f"Folder not found for path: {path}")
-
-    def get_child_folders(self, entry: FolderEntry) -> list[FolderEntry]:
-        # Find all folders that are children of the specified folder entry
-
-        result = []
-
-        for folder in self.__folders:
-            if folder.parent_folder_id == self.__folders.index(entry):
-                result.append(folder)
-
-        return result
+        self.__folders.append(root_folder)
+        self.__folder_path_map[Path(".")] = root_folder
+        self.__folder_children_map[root_folder] = []
 
     def add_folder(self, path: Path):
         folder_name = path.name
@@ -271,13 +252,11 @@ class Package:
                 else folder_name
             )
 
-        parent_folder = self.get_folder_entry(path.parent)
+        parent_folder = self.__folder_path_map[path.parent]
+        child_folders = self.__folder_children_map.get(parent_folder, [])
 
-        child_folders = self.get_child_folders(parent_folder)
-        last_child_folder = child_folders[-1] if child_folders else None
-
-        if last_child_folder:
-            last_child_folder.next_folder_id = len(self.__folders)
+        if child_folders:
+            child_folders[-1].next_folder_id = len(self.__folders)
         else:
             parent_folder.next_parent_folder_id = len(self.__folders)
 
@@ -293,25 +272,15 @@ class Package:
         )
 
         self.__folders.append(entry)
-
-    def get_child_files(self, entry: FolderEntry) -> list[FileEntry]:
-        # Find all files that are children of the specified folder entry
-        result = []
-
-        for file in self.__files:
-            if file.parent_folder_id == self.__folders.index(entry):
-                result.append(file)
-
-        return result
+        self.__folder_path_map[path] = entry
+        self.__folder_children_map.setdefault(parent_folder, []).append(entry)
 
     def add_file(self, writer: BufferedWriter, real_path: Path, pkg_path: Path):
-        parent_folder = self.get_folder_entry(pkg_path.parent)
+        parent_folder = self.__folder_path_map[pkg_path.parent]
+        child_files = self.__file_children_map.get(parent_folder, [])
 
-        child_files = self.get_child_files(parent_folder)
-        last_child_file = child_files[-1] if child_files else None
-
-        if last_child_file:
-            last_child_file.next_file_id = len(self.__files)
+        if child_files:
+            child_files[-1].next_file_id = len(self.__files)
         else:
             parent_folder.next_file_id = len(self.__files)
 
@@ -355,6 +324,7 @@ class Package:
         )
 
         self.__files.append(entry)
+        self.__file_children_map.setdefault(parent_folder, []).append(entry)
 
     def __build_names_block(self) -> bytes:
         names_block = b""
@@ -367,7 +337,7 @@ class Package:
             folder.name_offset = len(names_block)
             names_block += folder.name.encode() + b"\x00"
 
-            files = self.get_child_files(folder)
+            files = self.__file_children_map.get(folder, [])
             if not files:
                 # If there are no files in this folder, continue to the next folder
                 continue
