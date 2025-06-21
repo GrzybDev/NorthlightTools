@@ -66,6 +66,22 @@ files = [
 ]
 
 [[package]]
+name = "polib"
+version = "1.2.0"
+description = "A library to manipulate gettext files (po and mo files)."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/GrzybDev/polib.git"
+reference = "HEAD"
+resolved_reference = "25c74dbb29c93460e7cf4aedfae9d5fd78e2f1fd"
+
+[[package]]
 name = "pygments"
 version = "2.19.1"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -144,4 +160,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13"
-content-hash = "209732b5dbbe45f10d32204f6d52436af8428e6b3d7dd38f2be22ac98e1e0430"
+content-hash = "c42744d8e089987e8fb1ca4e286bad2a8859e2f8ce65c3b566fb886baa9eae7e"
