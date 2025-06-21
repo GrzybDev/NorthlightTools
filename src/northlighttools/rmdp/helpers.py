@@ -19,7 +19,7 @@ def get_endianness(endianness_id: int) -> Endianness:
 
 
 def get_package_version(version_id: int) -> PackageVersion:
-    return PackageVersion(version_id)
+    return PackageVersion(str(version_id))
 
 
 def read_name(f, name_block_length: int, name_offset: int) -> str:
