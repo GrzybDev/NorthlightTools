@@ -31,7 +31,7 @@ class Package:
 
     @property
     def __readsize(self) -> int:
-        return 4 if self.__version.value < PackageVersion.QUANTUM_BREAK.value else 8
+        return 4 if int(self.__version) < int(PackageVersion.QUANTUM_BREAK) else 8
 
     @property
     def folders(self) -> list[FolderEntry]:
