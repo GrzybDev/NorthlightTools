@@ -1,5 +1,7 @@
 import os
-from struct import unpack
+from struct import pack, unpack
+
+import numpy as np
 
 from northlighttools.binfnt.dataclasses.advance import Advance
 from northlighttools.binfnt.dataclasses.character import Character
@@ -114,3 +116,66 @@ class BinaryFont:
         self.lineHeight = (
             max(set(lineHeights), key=lineHeights.count) if lineHeights else 0
         )
+
+    def write(self, writer):
+        writer.write(self.version.value.to_bytes(4, "little"))
+        self._write_char_block(writer)
+        self._write_unknown_block(writer)
+        self._write_advance_block(writer)
+        self._write_id_block(writer)
+        self._write_kernel_block(writer)
+        self._write_texture(writer)
+
+    def _write_char_block(self, writer):
+        writer.write((len(self.characters) * 4).to_bytes(4, "little"))
+        for char in self.characters:
+            writer.write(pack("16f", *char.__dict__.values()))
+
+    def _write_unknown_block(self, writer):
+        writer.write((len(self.unknown) * 6).to_bytes(4, "little"))
+        for i in range(len(self.characters)):
+            u = self.unknown[min(i, len(self.unknown) - 1)]
+            writer.write(pack("6H", u.n1, u.n2, u.n3, u.n4, u.n5, u.n6))
+
+    def _write_advance_block(self, writer):
+        writer.write(len(self.advance).to_bytes(4, "little"))
+        for adv in self.advance:
+            writer.write(
+                pack(
+                    "4HI8f",
+                    adv.plus4,
+                    adv.num4,
+                    adv.plus6,
+                    adv.num6,
+                    adv.chnl,
+                    adv.xadvance1_1,
+                    adv.yoffset1_1,
+                    adv.xadvance2_1,
+                    adv.yoffset1_2,
+                    adv.xadvance2_2,
+                    adv.yoffset2_1,
+                    adv.xadvance1_2,
+                    adv.yoffset2_2,
+                )
+            )
+
+    def _write_id_block(self, writer):
+        id_table = np.zeros(0xFFFF + 1, dtype=np.uint16)
+        base_id = 0
+        for idx in self.ids:
+            id_table[idx] = base_id
+            base_id += 1
+        for idx in id_table.tolist():
+            writer.write(idx.to_bytes(2, "little"))
+
+    def _write_kernel_block(self, writer):
+        writer.write(len(self.kerning).to_bytes(4, "little"))
+        for kerning in self.kerning:
+            writer.write(pack("2Hf", kerning.first, kerning.second, kerning.amount))
+
+    def _write_texture(self, writer):
+        if self.version in [FontVersion.ALAN_WAKE, FontVersion.ALAN_WAKE_REMASTERED]:
+            writer.write(len(self.textureBytes).to_bytes(4, "little"))
+        elif self.version == FontVersion.QUANTUM_BREAK:
+            writer.write(self.textureUnknownVal)
+        writer.write(self.textureBytes)

@@ -1,13 +1,20 @@
 from io import BytesIO
+from pathlib import Path
 from struct import pack
 
 import numpy as np
 
+from northlighttools.binfnt.dataclasses.advance import Advance
+from northlighttools.binfnt.dataclasses.character import Character
 from northlighttools.binfnt.dataclasses.character_entry import CharacterEntry
-from northlighttools.binfnt.headers import BGRA8_HEADER
+from northlighttools.binfnt.dataclasses.kernel import Kernel
+from northlighttools.binfnt.dataclasses.point import Point
+from northlighttools.binfnt.enums.font_version import FontVersion
+from northlighttools.binfnt.headers import BGRA8_HEADER, R16F_HEADER
 from northlighttools.binfnt.helpers import (
     get_kernings_for_bmfont,
     get_point_from_uv_mapping,
+    get_uv_mapping_from_point,
 )
 
 
@@ -77,3 +84,140 @@ def convert_r16f_to_bgra8(r16f: BytesIO) -> bytes:
         )
 
     return bgra8.getvalue()
+
+
+def apply_bmfont_to_binfnt(binfnt, bmfont):
+    def parse_line_to_dict(line):
+        return {x.split("=")[0]: x.split("=")[1].strip() for x in line.split()[1:]}
+
+    def get_character(char):
+        point = Point(
+            x=float(char["x"]),
+            y=float(char["y"]),
+            width=int(char["width"]),
+            height=int(char["height"]),
+        )
+
+        uv = get_uv_mapping_from_point(point, binfnt.textureWidth, binfnt.textureHeight)
+
+        bx1 = float(char["xoffset"]) / binfnt.fontSize
+        bx2 = (float(char["xoffset"]) + float(char["width"])) / binfnt.fontSize
+        by1 = (binfnt.lineHeight - float(char["yoffset"])) / binfnt.fontSize
+        by2 = (
+            binfnt.lineHeight - float(char["yoffset"]) - int(char["height"])
+        ) / binfnt.fontSize
+
+        c = Character(
+            bearingX1_1=bx1,
+            bearingX1_2=bx1,
+            bearingY2_1=by2,
+            bearingY2_2=by2,
+            xMin_1=uv.UVLeft,
+            xMin_2=uv.UVLeft,
+            yMin_1=uv.UVTop,
+            yMin_2=uv.UVTop,
+            xMax_1=uv.UVRight,
+            xMax_2=uv.UVRight,
+            yMax_1=uv.UVBottom,
+            yMax_2=uv.UVBottom,
+            bearingX2_1=bx2,
+            bearingX2_2=bx2,
+            bearingY1_1=by1,
+            bearingY1_2=by1,
+        )
+
+        if int(char["id"]) in [9, 10, 13, 32]:
+            c.bearingX1_1 = c.bearingY2_1 = c.bearingX2_1 = c.bearingY1_1 = 0
+
+        return c
+
+    def get_advance(char, num4, num6, i):
+        chnl = {2: 1, 1: 2}.get(int(char["chnl"]), 0)
+        yoffset2 = -float(char["yoffset"]) / binfnt.fontSize
+        xadvance2 = float(char["xadvance"]) / binfnt.fontSize
+        yoffset1 = yoffset2 - int(char["height"]) / binfnt.fontSize
+
+        return Advance(
+            plus4=num4 * i,
+            num4=num4,
+            plus6=num6 * i,
+            num6=num6,
+            chnl=chnl,
+            xadvance1_1=0,
+            xadvance1_2=0,
+            yoffset2_1=yoffset2,
+            yoffset2_2=yoffset2,
+            xadvance2_1=xadvance2,
+            xadvance2_2=xadvance2,
+            yoffset1_1=yoffset1,
+            yoffset1_2=yoffset1,
+        )
+
+    def get_kerning(version, kerning):
+        amount = (
+            float(kerning["amount"]) * binfnt.fontSize
+            if version in [FontVersion.ALAN_WAKE, FontVersion.ALAN_WAKE_REMASTERED]
+            else float(kerning["amount"]) / binfnt.fontSize
+        )
+
+        return Kernel(
+            first=int(kerning["first"]), second=int(kerning["second"]), amount=amount
+        )
+
+    info = parse_line_to_dict(bmfont[0])
+    binfnt.fontSize = float(info["size"])
+    common = parse_line_to_dict(bmfont[1])
+    binfnt.lineHeight = float(common["lineHeight"])
+    binfnt.textureWidth = int(common["scaleW"])
+    binfnt.textureHeight = int(common["scaleH"])
+    page = parse_line_to_dict(bmfont[2])
+    chars = parse_line_to_dict(bmfont[3])
+    expected_chars = int(chars["count"])
+    binfnt.characters.clear()
+
+    num4, num6 = binfnt.advance[0].num4, binfnt.advance[0].num6
+    binfnt.advance.clear()
+    binfnt.ids.clear()
+
+    for i in range(expected_chars):
+        char = parse_line_to_dict(bmfont[4 + i])
+
+        if int(char["width"]) == 0 and int(char["height"]) == 0:
+            char["width"] = 6
+            char["height"] = 6
+
+        binfnt.characters.append(get_character(char))
+        binfnt.advance.append(get_advance(char, num4, num6, i))
+        binfnt.ids.append(int(char["id"]))
+
+    kernings = parse_line_to_dict(bmfont[4 + expected_chars])
+    expected_kernings = int(kernings["count"])
+    binfnt.kerning.clear()
+
+    for i in range(expected_kernings):
+        kerning = parse_line_to_dict(bmfont[5 + expected_chars + i])
+        binfnt.kerning.append(get_kerning(binfnt.version, kerning))
+
+    return Path(page["file"].strip('"'))
+
+
+def convert_bgra8_to_r16f(bgra8: BytesIO) -> bytes:
+    bgra8.seek(12)
+    textureHeight = int.from_bytes(bgra8.read(4), "little")
+    textureWidth = int.from_bytes(bgra8.read(4), "little")
+    bgra8.seek(128)
+    r16f = BytesIO()
+    r16f.write(R16F_HEADER[:12])
+    r16f.write(textureHeight.to_bytes(4, "little"))
+    r16f.write(textureWidth.to_bytes(4, "little"))
+    r16f.write((textureWidth * 2).to_bytes(4, "little"))
+    r16f.write(R16F_HEADER[24:])
+
+    for _ in range(textureWidth * textureHeight):
+        b, g, r, a = bgra8.read(4)
+        hGray = -((18) * a / 255.0 - 9.0)
+        r16f.write(
+            np.float16(hGray).tobytes() if a > 0 else int.to_bytes(32767, 2, "little")
+        )
+
+    return r16f.getvalue()

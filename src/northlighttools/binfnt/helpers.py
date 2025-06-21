@@ -1,4 +1,5 @@
 from northlighttools.binfnt.dataclasses.point import Point
+from northlighttools.binfnt.dataclasses.uv_mapping import UVMapping
 from northlighttools.binfnt.enums.font_version import FontVersion
 
 
@@ -6,6 +7,15 @@ def get_point_from_uv_mapping(char, width, height):
     x, y = char.xMin_1 * width, char.yMin_1 * height
     return Point(
         x=x, y=y, width=char.xMax_1 * width - x, height=char.yMax_1 * height - y
+    )
+
+
+def get_uv_mapping_from_point(point, width, height):
+    return UVMapping(
+        UVLeft=point.x / width,
+        UVTop=point.y / height,
+        UVRight=(point.x + point.width) / width,
+        UVBottom=(point.y + point.height) / height,
     )
 
 
