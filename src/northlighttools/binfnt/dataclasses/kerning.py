@@ -16,3 +16,11 @@ class Kerning:
             self.amount *= font_size
 
         return self
+
+    def with_font_size(self, font_size: float, version: FontVersion):
+        if version in [FontVersion.ALAN_WAKE, FontVersion.ALAN_WAKE_REMASTERED]:
+            self.amount *= font_size
+        else:
+            self.amount /= font_size
+
+        return self
