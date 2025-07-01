@@ -19,6 +19,7 @@ class BinaryFont:
         self.__characters: list[RemedyCharacter] = []
         self.__unknowns: list[Unknown] = []
         self.__advances: list[Advance] = []
+        self.__id_table: list[int] = []
 
         if file_path is not None:
             self.__load(file_path)
@@ -30,6 +31,7 @@ class BinaryFont:
             self.__read_character_block(reader)
             self.__read_unknown_block(reader)
             self.__read_advance_block(reader)
+            self.__read_id_table(reader)
 
     def __read_character_block(self, reader):
         self.__progress.console.log("Reading character block...")
@@ -57,3 +59,21 @@ class BinaryFont:
 
         for _ in range(len(self.__characters)):
             self.__advances.append(Advance(*unpack("4HI8f", reader.read(44))))
+
+    def __read_id_table(self, reader):
+        self.__progress.console.log("Reading ID table...")
+
+        start_pos = reader.tell()
+        current_id = 0
+
+        self.__id_table = []
+
+        while ((reader.tell() - start_pos) / 2) <= 0xFFFF:
+            idx = int.from_bytes(reader.read(2), "little")
+
+            if idx != 0:
+                self.__id_table.append(current_id)
+
+            current_id += 1
+
+        self.__id_table.insert(0, self.__id_table[0] - 1)
