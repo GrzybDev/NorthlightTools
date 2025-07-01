@@ -1,6 +1,9 @@
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
+
+from northlighttools.rmdp.constants import EPOCH_AS_FILETIME, HUNDREDS_OF_NANOSECONDS
 
 
 def get_archive_paths(
@@ -16,3 +19,10 @@ def get_archive_paths(
         )
 
     return bin_path, rmdp_path
+
+
+def filetime_to_dt(ft: int) -> datetime:
+    # Get seconds and remainder in terms of Unix epoch
+    s, ns100 = divmod(ft - EPOCH_AS_FILETIME, HUNDREDS_OF_NANOSECONDS)
+    # Convert to datetime object, with remainder as microseconds.
+    return datetime.fromtimestamp(s, tz=timezone.utc).replace(microsecond=(ns100 // 10))
