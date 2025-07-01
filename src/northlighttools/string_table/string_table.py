@@ -5,9 +5,13 @@ from io import BufferedReader
 from pathlib import Path
 from xml.dom import minidom
 
-from polib import POEntry, POFile
+from polib import POEntry, POFile, pofile
 
 from northlighttools.string_table.enumerators.data_format import DataFormat
+from northlighttools.string_table.enumerators.missing_string_behaviour import (
+    MissingStringBehaviour,
+)
+from northlighttools.string_table.helpers import get_translated_string
 
 
 class StringTable:
@@ -92,3 +96,72 @@ class StringTable:
                 self.__to_csv(output_path)
             case DataFormat.PO:
                 self.__to_po(output_path)
+
+    def __from_xml(self, input_path: Path):
+        tree = ET.parse(input_path)
+        root = tree.getroot()
+
+        self.__entries = {
+            string.attrib["key"]: string.attrib["value"]
+            for string in root.findall("string")
+        }
+
+    def __from_json(self, input_path: Path):
+        with open(input_path, "r", encoding="utf-8") as f:
+            self.__entries = json.load(f)
+
+    def __from_csv(self, input_path: Path, missing_strings: MissingStringBehaviour):
+        self.__entries = {}
+
+        with open(input_path, "r", encoding="utf-16le") as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                translated_string = get_translated_string(
+                    row["Key"],
+                    row["SourceString"],
+                    row["TranslatedString"],
+                    missing_strings,
+                )
+
+                if translated_string is None:
+                    continue
+
+                self.__entries[row["Key"]] = translated_string
+
+    def __from_po(self, input_path: Path, missing_strings: MissingStringBehaviour):
+        self.__entries = {}
+        po = pofile(input_path)
+
+        for entry in po:
+            translated_string = get_translated_string(
+                entry.msgctxt, entry.msgid, entry.msgstr, missing_strings
+            )
+
+            if translated_string is None:
+                continue
+
+            self.__entries[entry.msgctxt] = translated_string
+
+    def load_from(self, input_path: Path, missing_strings: MissingStringBehaviour):
+        match input_path.suffix.lower():
+            case ".xml":
+                self.__from_xml(input_path)
+            case ".json":
+                self.__from_json(input_path)
+            case ".csv":
+                self.__from_csv(input_path, missing_strings)
+            case ".po":
+                self.__from_po(input_path, missing_strings)
+            case _:
+                raise ValueError(f"Unsupported file format: {input_path.suffix}")
+
+    def save(self, output_path: Path):
+        with output_path.open("wb") as f:
+            f.write(len(self.__entries).to_bytes(4, "little"))
+
+            for key, value in self.__entries.items():
+                f.write(len(key).to_bytes(4, "little"))
+                f.write(key.encode("ascii"))
+                f.write(len(value).to_bytes(4, "little"))
+                f.write(value.encode("utf-16le"))
