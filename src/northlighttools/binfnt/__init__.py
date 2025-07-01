@@ -54,5 +54,45 @@ def cmd_decompile(
         progress.update(task, advance=1, description="Decompiled successfully")
 
 
+@app.command(name="compile", help="Compile JSON and bitmap(s) to binary font")
+def cmd_compile(
+    input_file: Annotated[
+        Path,
+        typer.Argument(
+            help="Input JSON file path",
+            exists=True,
+            readable=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
+    ],
+    output_file: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Output .binfnt file path",
+            writable=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
+    ] = None,
+):
+    output_file = output_file or input_file.with_suffix(".binfnt")
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    separate_chars = not input_file.with_suffix(".png").exists()
+
+    with Progress(
+        SpinnerColumn(finished_text="\u2713"),
+        TextColumn("[progress.description]{task.description}"),
+    ) as progress:
+        task = progress.add_task("Compiling...", total=1)
+
+        binfnt = BinaryFont(progress)
+        binfnt.from_json(input_file, separate_chars)
+        binfnt.build(output_file)
+
+        progress.update(task, advance=1, description="Compiled successfully")
+
+
 if __name__ == "__main__":
     app()
