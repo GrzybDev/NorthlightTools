@@ -44,6 +44,7 @@ def info(
     typer.echo(f"Endianness: {package.endianness}")
     typer.echo(f"Version: {package.version.name} ({package.version.value})")
     typer.echo(f"Number of folders: {len(package.folders)}")
+    typer.echo(f"Number of files: {len(package.files)}")
 
     if print_unknown_metadata:
         typer.echo("Unknown metadata:")
