@@ -4,6 +4,9 @@ from typing import Annotated
 import typer
 
 from northlighttools.string_table.enumerators.data_format import DataFormat
+from northlighttools.string_table.enumerators.missing_string_behaviour import (
+    MissingStringBehaviour,
+)
 from northlighttools.string_table.string_table import StringTable
 
 app = typer.Typer(
@@ -49,6 +52,47 @@ def cmd_export(
     table.export(output_path, output_type)
 
     typer.echo(f"Successfully exported string table to {output_path}!")
+
+
+@app.command(name="import", help="Generate string_table.bin from input file")
+def cmd_import(
+    input_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the input file to import",
+        ),
+    ],
+    output_path: Annotated[
+        Path | None,
+        typer.Argument(
+            file_okay=True,
+            dir_okay=False,
+            writable=True,
+            help="Path to the output string_table.bin file",
+        ),
+    ] = None,
+    missing_strings: Annotated[
+        MissingStringBehaviour,
+        typer.Option(
+            "--missing-strings",
+            "-m",
+            case_sensitive=False,
+            help="What should missing translations look like in imported file",
+        ),
+    ] = MissingStringBehaviour.KeyAndOriginal,
+):
+    output_path = output_path or input_path.with_suffix(".bin")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    table = StringTable()
+    table.load_from(input_path, missing_strings=missing_strings)
+    table.save(output_path)
+
+    typer.echo(f"Successfully imported string table to {output_path}!")
 
 
 if __name__ == "__main__":
