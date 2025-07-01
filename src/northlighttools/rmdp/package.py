@@ -1,6 +1,7 @@
 import os
 import zlib
-from io import BufferedReader
+from datetime import datetime, timezone
+from io import BufferedReader, BufferedWriter
 from pathlib import Path
 from typing import Literal
 
@@ -281,3 +282,79 @@ class Package:
         self.__folders.append(entry)
         self.__folder_path_map[path] = entry
         self.__folder_children_map.setdefault(parent_folder, []).append(entry)
+
+    def get_folder_entry(self, path: Path) -> FolderEntry:
+        if path == Path("."):
+            # If the path is just a single part, return the root folder
+            return self.__folders[0]
+
+        for folder in self.__folders:
+            # Iterate through folders to find the one matching the path
+            folder_path = self.get_folder_path(folder)
+
+            if folder_path == path:
+                return folder
+        else:
+            raise ValueError(f"Folder not found for path: {path}")
+
+    def get_child_files(self, entry: FolderEntry) -> list[FileEntry]:
+        # Find all files that are children of the specified folder entry
+        result = []
+
+        for file in self.__files:
+            if file.parent_folder_id == self.__folders.index(entry):
+                result.append(file)
+
+        return result
+
+    def add_file(self, writer: BufferedWriter, real_path: Path, pkg_path: Path):
+        parent_folder = self.get_folder_entry(pkg_path.parent)
+
+        child_files = self.get_child_files(parent_folder)
+        last_child_file = child_files[-1] if child_files else None
+
+        if last_child_file:
+            last_child_file.next_file_id = len(self.__files)
+        else:
+            parent_folder.next_file_id = len(self.__files)
+
+        file_offset = writer.tell()
+        file_size = real_path.stat().st_size
+        file_write_time = datetime.fromtimestamp(
+            real_path.stat().st_mtime, tz=timezone.utc
+        )
+
+        data_checksum = 0
+
+        with real_path.open("rb") as f:
+            remaining_bytes = file_size
+
+            while remaining_bytes > 0:
+                chunk_size = min(remaining_bytes, CHUNK_SIZE)
+                chunk = f.read(chunk_size)
+
+                if not chunk:
+                    raise ValueError(
+                        f"Unexpected end of file while reading {pkg_path.name}. "
+                        f"Expected {file_size} bytes, but got {file_size - remaining_bytes + chunk_size} bytes."
+                    )
+
+                writer.write(chunk)
+
+                data_checksum = zlib.crc32(chunk, data_checksum)
+                remaining_bytes -= len(chunk)
+
+        entry = FileEntry(
+            name=pkg_path.name,
+            parent_folder_id=self.__folders.index(parent_folder),
+            next_file_id=self.__null_id,
+            name_checksum=zlib.crc32(pkg_path.name.lower().encode()),
+            data_checksum=data_checksum,
+            name_offset=self.__null_id,
+            flags=0,
+            size=file_size,
+            offset=file_offset,
+            write_time=file_write_time,
+        )
+
+        self.__files.append(entry)
