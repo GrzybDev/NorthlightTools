@@ -339,3 +339,17 @@ class BinaryFont:
                     self.__progress.console.log(
                         f"Warning: Character texture file not found: {char_path}"
                     )
+
+    def build(self, output_path: Path):
+        if not self.__texture:
+            raise ValueError("Texture is not loaded. Cannot compile.")
+
+        self.__progress.console.log("Converting texture to DDS format...")
+
+        texture_data = BytesIO()
+        self.__texture.save(texture_data, format="DDS")
+        texture_bytes = texture_data.getvalue()
+
+        if self.__version == FontVersion.QUANTUM_BREAK:
+            self.__progress.console.log("Converting texture to R16_FLOAT format...")
+            texture_bytes = DDS.convert_to_r16f(texture_bytes)
