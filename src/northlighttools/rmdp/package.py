@@ -22,9 +22,17 @@ class Package:
     def endianness(self) -> Endianness:
         return self.__endianness
 
+    @endianness.setter
+    def endianness(self, value: Endianness):
+        self.__endianness = value
+
     @property
     def version(self) -> PackageVersion:
         return self.__version
+
+    @version.setter
+    def version(self, value: PackageVersion):
+        self.__version = value
 
     @property
     def folders(self) -> list[FolderEntry]:
