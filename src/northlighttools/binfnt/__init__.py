@@ -29,6 +29,15 @@ def cmd_decompile(
             help="Output directory", writable=True, file_okay=False, dir_okay=True
         ),
     ] = None,
+    separate_chars: Annotated[
+        bool,
+        typer.Option(
+            "--separate-chars",
+            "-s",
+            help="Save each character bitmap to a separate file",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     output_dir = output_dir or input_file.parent / input_file.stem
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -40,7 +49,7 @@ def cmd_decompile(
         task = progress.add_task("Decompiling...", total=1)
 
         binfnt = BinaryFont(progress, input_file)
-        binfnt.dump(output_dir)
+        binfnt.dump(output_dir, separate_chars)
 
         progress.update(task, advance=1, description="Decompiled successfully")
 

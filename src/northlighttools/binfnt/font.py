@@ -7,6 +7,7 @@ from struct import unpack
 
 from PIL import Image
 
+from northlighttools.binfnt.constants import CHARS_FOLDER
 from northlighttools.binfnt.dataclasses.advance import Advance
 from northlighttools.binfnt.dataclasses.character_rmd import RemedyCharacter
 from northlighttools.binfnt.dataclasses.kerning import Kerning
@@ -166,7 +167,7 @@ class BinaryFont:
         )
         self.__font_size = max(set(sizes), key=sizes.count) if sizes else 0
 
-    def dump(self, output_path: Path):
+    def dump(self, output_path: Path, separate_characters: bool = False):
         if not self.__texture:
             self.__progress.console.log("No texture data available, cannot save font.")
             return
@@ -202,11 +203,46 @@ class BinaryFont:
                 "unknown_dds_header": self.__unknown_dds_header,
             }
 
+            if separate_characters:
+                font_data["texture_width"] = self.__texture.width
+                font_data["texture_height"] = self.__texture.height
+
             data = json.dumps(font_data, indent=4, ensure_ascii=False)
             f.write(data)
 
-        # Save the texture as a PNG file
-        self.__progress.console.log("Saving texture as a PNG file...")
+        if not separate_characters:
+            # Save the texture as a PNG file
+            self.__progress.console.log("Saving texture as a PNG file...")
 
-        texture_path = font_path.with_suffix(".png")
-        self.__texture.save(texture_path, format="PNG")
+            texture_path = font_path.with_suffix(".png")
+            self.__texture.save(texture_path, format="PNG")
+            return
+
+        # Save each character as a separate PNG file
+        self.__progress.console.log("Saving each character as a separate PNG file...")
+        chars_dir = output_path / CHARS_FOLDER
+        chars_dir.mkdir(parents=True, exist_ok=True)
+
+        for char_id, char in enumerate(self.__characters):
+            char_data = char.to_character(
+                texture_width=self.__texture.width,
+                texture_height=self.__texture.height,
+                advance=self.__advances[char_id],
+                line_height=self.__line_height,
+                font_size=self.__font_size,
+            )
+
+            if char_data.width == 0 or char_data.height == 0:
+                continue
+
+            char_texture = self.__texture.crop(
+                (
+                    char_data.x,
+                    char_data.y,
+                    char_data.x + char_data.width,
+                    char_data.y + char_data.height,
+                )
+            )
+
+            char_texture_path = chars_dir / f"{self.__id_table[char_id]}.png"
+            char_texture.save(char_texture_path, format="PNG")
