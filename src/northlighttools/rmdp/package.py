@@ -171,3 +171,25 @@ class Package:
             offset=file_offset,
             write_time=write_time,
         )
+
+    def get_folder_path(self, folder: FolderEntry) -> Path:
+        # Navigate up the folder hierarchy to get the full path
+        path_parts = []
+
+        while folder.parent_folder_id != self.__null_id:
+            folder_name = folder.name
+
+            if folder.parent_folder_id == 0:
+                folder_name = folder.name.replace(
+                    ":", "_"
+                )  # Replace ':' with '_' for compatibility
+
+            path_parts.append(folder_name)
+            folder = self.folders[folder.parent_folder_id]
+
+        path_parts.append(folder.name)
+        return Path(*reversed(path_parts))
+
+    def get_file_path(self, file: FileEntry) -> Path:
+        parent_folder = self.folders[file.parent_folder_id]
+        return Path(self.get_folder_path(parent_folder), file.name)
