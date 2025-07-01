@@ -3,9 +3,11 @@ import zlib
 from pathlib import Path
 from typing import Literal
 
+from northlighttools.rmdp.dataclasses.entry_file import FileEntry
 from northlighttools.rmdp.dataclasses.entry_folder import FolderEntry
 from northlighttools.rmdp.enumerators.endianness import Endianness
 from northlighttools.rmdp.enumerators.package_version import PackageVersion
+from northlighttools.rmdp.helpers import filetime_to_dt
 
 
 class Package:
@@ -24,6 +26,10 @@ class Package:
     @property
     def folders(self) -> list[FolderEntry]:
         return self.__folders
+
+    @property
+    def files(self) -> list[FileEntry]:
+        return self.__files
 
     @property
     def unknown_data(self) -> dict[str, bytes | int]:
@@ -45,6 +51,7 @@ class Package:
         self.__name_block_len = 0
 
         self.__folders: list[FolderEntry] = []
+        self.__files: list[FileEntry] = []
         self.__unknown_data = {}
 
         if header_path:
@@ -56,7 +63,7 @@ class Package:
             self.__version = PackageVersion(self.__read_int(f, 4))
 
             num_folders = self.__read_int(f, 4)
-            self.__unknown_data["meta_value_2"] = self.__read_int(f, 4)
+            num_files = self.__read_int(f, 4)
 
             if self.__version == PackageVersion.ALAN_WAKE:
                 self.__name_block_len = self.__read_int(f, 4, override_byteorder="big")
@@ -69,6 +76,7 @@ class Package:
                 self.__unknown_data["header_data"] = f.read(0x80)
 
             self.__folders = [self.__read_folder_entry(f) for _ in range(num_folders)]
+            self.__files = [self.__read_file_entry(f) for _ in range(num_files)]
 
     def __read_int(
         self, f, size: int, override_byteorder: Literal["little", "big"] | None = None
@@ -123,4 +131,43 @@ class Package:
             next_folder_id=next_folder_id,
             next_parent_folder_id=next_parent_folder_id,
             parent_folder_id=parent_folder_id,
+        )
+
+    def __read_file_entry(self, f):
+        expected_checksum = self.__read_int(f, 4)
+
+        next_file_id = self.__read_int(f, self.__readsize)
+        parent_folder_id = self.__read_int(f, self.__readsize)
+        file_flags = self.__read_int(f, 4)
+        name_offset = self.__read_int(f, self.__readsize)
+
+        file_offset = self.__read_int(f, 8)
+        file_size = self.__read_int(f, 8)
+        file_checksum = self.__read_int(f, 4, override_byteorder="little")
+        file_name = self.__read_string(f, name_offset)
+        actual_checksum = zlib.crc32(file_name.lower().encode())
+
+        if actual_checksum != expected_checksum:
+            raise ValueError(
+                f"Checksum mismatch for file name '{file_name}': "
+                f"expected {expected_checksum}, got {actual_checksum}. Package may be corrupted."
+            )
+
+        write_time = None
+
+        if self.__version.value >= PackageVersion.ALAN_WAKE_AMERICAN_NIGHTMARE.value:
+            filetime = self.__read_int(f, 8)
+            write_time = filetime_to_dt(filetime)
+
+        return FileEntry(
+            name=file_name,
+            parent_folder_id=parent_folder_id,
+            next_file_id=next_file_id,
+            name_checksum=actual_checksum,
+            data_checksum=file_checksum,
+            name_offset=name_offset,
+            flags=file_flags,
+            size=file_size,
+            offset=file_offset,
+            write_time=write_time,
         )
