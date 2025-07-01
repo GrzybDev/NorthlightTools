@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from struct import unpack
 
+from northlighttools.binfnt.dataclasses.advance import Advance
 from northlighttools.binfnt.dataclasses.character_rmd import RemedyCharacter
 from northlighttools.binfnt.dataclasses.unknown import Unknown
 from northlighttools.binfnt.enumerators.font_version import FontVersion
@@ -17,6 +18,7 @@ class BinaryFont:
 
         self.__characters: list[RemedyCharacter] = []
         self.__unknowns: list[Unknown] = []
+        self.__advances: list[Advance] = []
 
         if file_path is not None:
             self.__load(file_path)
@@ -27,6 +29,7 @@ class BinaryFont:
 
             self.__read_character_block(reader)
             self.__read_unknown_block(reader)
+            self.__read_advance_block(reader)
 
     def __read_character_block(self, reader):
         self.__progress.console.log("Reading character block...")
@@ -45,3 +48,12 @@ class BinaryFont:
 
         for _ in range(len(self.__characters)):
             self.__unknowns.append(Unknown(*unpack("6H", reader.read(12))))
+
+    def __read_advance_block(self, reader):
+        self.__progress.console.log("Reading advance block...")
+
+        reader.seek(4, os.SEEK_CUR)  # Skip 4 bytes (integer = character count)
+        self.__advances = []
+
+        for _ in range(len(self.__characters)):
+            self.__advances.append(Advance(*unpack("4HI8f", reader.read(44))))
