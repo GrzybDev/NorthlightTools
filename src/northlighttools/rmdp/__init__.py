@@ -22,6 +22,15 @@ def info(
             readable=True,
         ),
     ],
+    print_unknown_metadata: Annotated[
+        bool,
+        typer.Option(
+            "--print-unknown-metadata",
+            "-u",
+            is_flag=True,
+            help="Print unknown metadata from the package header",
+        ),
+    ] = False,
 ):
     bin_path, _ = get_archive_paths(archive_path)
 
@@ -34,6 +43,11 @@ def info(
 
     typer.echo(f"Endianness: {package.endianness}")
     typer.echo(f"Version: {package.version.name} ({package.version.value})")
+
+    if print_unknown_metadata:
+        typer.echo("Unknown metadata:")
+        for key, value in package.unknown_data.items():
+            typer.echo(f"  {key}: {value}")
 
 
 if __name__ == "__main__":
