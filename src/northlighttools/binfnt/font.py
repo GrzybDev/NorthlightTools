@@ -1,11 +1,15 @@
 import os
+from io import BytesIO
 from pathlib import Path
 from struct import unpack
+
+from PIL import Image
 
 from northlighttools.binfnt.dataclasses.advance import Advance
 from northlighttools.binfnt.dataclasses.character_rmd import RemedyCharacter
 from northlighttools.binfnt.dataclasses.kerning import Kerning
 from northlighttools.binfnt.dataclasses.unknown import Unknown
+from northlighttools.binfnt.dds import DDS
 from northlighttools.binfnt.enumerators.font_version import FontVersion
 from northlighttools.rmdp import Progress
 
@@ -13,6 +17,10 @@ from northlighttools.rmdp import Progress
 class BinaryFont:
 
     __version: FontVersion = FontVersion.QUANTUM_BREAK
+
+    __texture: Image.Image | None = None
+    __texture_size: int | None = None
+    __unknown_dds_header: int | None = None
 
     def __init__(self, progress: Progress, file_path: Path | None = None):
         self.__progress = progress
@@ -35,6 +43,7 @@ class BinaryFont:
             self.__read_advance_block(reader)
             self.__read_id_table(reader)
             self.__read_kerning_block(reader)
+            self.__read_texture(reader)
 
     def __read_character_block(self, reader):
         self.__progress.console.log("Reading character block...")
@@ -97,3 +106,17 @@ class BinaryFont:
 
         for _ in range(kerning_count):
             self.__kernings.append(Kerning(*unpack(fmt, reader.read(size))))
+
+    def __read_texture(self, reader):
+        self.__progress.console.log("Reading texture metadata...")
+
+        if self.__version in [FontVersion.ALAN_WAKE, FontVersion.ALAN_WAKE_REMASTERED]:
+            self.__texture_size = int.from_bytes(reader.read(4), "little")
+        elif self.__version == FontVersion.QUANTUM_BREAK:
+            self.__unknown_dds_header = int.from_bytes(reader.read(8), "little")
+
+        self.__progress.console.log("Converting texture to BGRA8 format...")
+        converted_texture = DDS.convert_to_bgra8(reader.read())
+
+        self.__progress.console.log("Loading texture into memory...")
+        self.__texture = Image.open(BytesIO(converted_texture))
