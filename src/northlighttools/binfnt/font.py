@@ -1,4 +1,6 @@
+import json
 import os
+from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
 from struct import unpack
@@ -17,6 +19,7 @@ from northlighttools.rmdp import Progress
 class BinaryFont:
 
     __version: FontVersion = FontVersion.QUANTUM_BREAK
+    __font_name: str = ""
 
     __texture: Image.Image | None = None
     __texture_size: int | None = None
@@ -35,6 +38,7 @@ class BinaryFont:
         self.__kernings: list[Kerning] = []
 
         if file_path is not None:
+            self.__font_name = file_path.stem
             self.__load(file_path)
 
     def __load(self, file_path: Path):
@@ -161,3 +165,48 @@ class BinaryFont:
             max(set(line_heights), key=line_heights.count) if line_heights else 0
         )
         self.__font_size = max(set(sizes), key=sizes.count) if sizes else 0
+
+    def dump(self, output_path: Path):
+        if not self.__texture:
+            self.__progress.console.log("No texture data available, cannot save font.")
+            return
+
+        self.__progress.console.log("Saving font data...")
+
+        # Dump the font data to a json file
+        font_path = output_path / f"{self.__font_name}.json"
+
+        with font_path.open("w", encoding="utf-8") as f:
+            font_data = {
+                "version": self.__version.value,
+                "line_height": self.__line_height,
+                "font_size": self.__font_size,
+                "characters": {
+                    self.__id_table[char_id]: asdict(
+                        char.to_character(
+                            texture_width=self.__texture.width,
+                            texture_height=self.__texture.height,
+                            advance=self.__advances[char_id],
+                            line_height=self.__line_height,
+                            font_size=self.__font_size,
+                        )
+                    )
+                    for char_id, char in enumerate(self.__characters)
+                },
+                "kernings": [
+                    asdict(ker.without_font_size(self.__font_size, self.__version))
+                    for ker in self.__kernings
+                ],
+                "unknowns": [asdict(unk) for unk in self.__unknowns],
+                "texture_size": self.__texture_size,
+                "unknown_dds_header": self.__unknown_dds_header,
+            }
+
+            data = json.dumps(font_data, indent=4, ensure_ascii=False)
+            f.write(data)
+
+        # Save the texture as a PNG file
+        self.__progress.console.log("Saving texture as a PNG file...")
+
+        texture_path = font_path.with_suffix(".png")
+        self.__texture.save(texture_path, format="PNG")
