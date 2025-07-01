@@ -52,5 +52,32 @@ def info(
             typer.echo(f"  {key}: {value}")
 
 
+@app.command(name="list", help="Lists files in a Remedy Package")
+def contents(
+    archive_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the input .bin/.rmdp file",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ],
+):
+    bin_path, _ = get_archive_paths(archive_path)
+
+    with Progress(transient=True) as progress:
+        progress.add_task(
+            description="Reading package metadata...",
+            total=None,
+        )
+        package = Package(header_path=bin_path)
+
+    for file in package.files:
+        file_path = package.get_file_path(file)
+        typer.echo(f"{file_path} (Size: {file.size} bytes, Offset: {file.offset})")
+
+
 if __name__ == "__main__":
     app()
