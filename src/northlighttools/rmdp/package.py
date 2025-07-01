@@ -10,7 +10,7 @@ from northlighttools.rmdp.dataclasses.entry_file import FileEntry
 from northlighttools.rmdp.dataclasses.entry_folder import FolderEntry
 from northlighttools.rmdp.enumerators.endianness import Endianness
 from northlighttools.rmdp.enumerators.package_version import PackageVersion
-from northlighttools.rmdp.helpers import filetime_to_dt
+from northlighttools.rmdp.helpers import dt_to_filetime, filetime_to_dt
 
 
 class Package:
@@ -87,6 +87,15 @@ class Package:
         return int.from_bytes(
             f.read(size), byteorder=override_byteorder or self.__endianness.name.lower()  # type: ignore
         )
+
+    def __write_int(
+        self,
+        f,
+        value: int,
+        size: int,
+        override_byteorder: Literal["little", "big"] | None = None,
+    ):
+        f.write(value.to_bytes(size, byteorder=override_byteorder or self.__endianness.name.lower()))  # type: ignore
 
     def __read_string(self, f, offset: int) -> str:
         if offset == self.__null_id:
@@ -358,3 +367,82 @@ class Package:
         )
 
         self.__files.append(entry)
+
+    def __build_names_block(self) -> bytes:
+        names_block = b""
+
+        for folder in self.__folders:
+            if not folder.name:
+                # Skip empty folder names
+                continue
+
+            folder.name_offset = len(names_block)
+            names_block += folder.name.encode() + b"\x00"
+
+            files = self.get_child_files(folder)
+            if not files:
+                # If there are no files in this folder, continue to the next folder
+                continue
+
+            for file in files:
+                if not file.name:
+                    # Skip empty file names
+                    continue
+
+                file.name_offset = len(names_block)
+                names_block += file.name.encode() + b"\x00"
+
+        return names_block
+
+    def __write_folder_entry(self, writer: BufferedWriter, folder: FolderEntry):
+        self.__write_int(writer, folder.checksum, 4)
+        self.__write_int(writer, folder.next_folder_id, self.__readsize)
+        self.__write_int(writer, folder.parent_folder_id, self.__readsize)
+        self.__write_int(writer, folder.flags, 4)
+        self.__write_int(writer, folder.name_offset, self.__readsize)
+        self.__write_int(writer, folder.next_parent_folder_id, self.__readsize)
+        self.__write_int(writer, folder.next_file_id, self.__readsize)
+
+    def __write_file_entry(self, writer: BufferedWriter, file: FileEntry):
+        self.__write_int(writer, file.name_checksum, 4)
+        self.__write_int(writer, file.next_file_id, self.__readsize)
+        self.__write_int(writer, file.parent_folder_id, self.__readsize)
+        self.__write_int(writer, file.flags, 4)
+        self.__write_int(writer, file.name_offset, self.__readsize)
+        self.__write_int(writer, file.offset, 8)
+        self.__write_int(writer, file.size, 8)
+        self.__write_int(writer, file.data_checksum, 4)
+
+        if self.__version.value >= PackageVersion.ALAN_WAKE_AMERICAN_NIGHTMARE.value:
+            ts = file.write_time if file.write_time else datetime.now()
+            filetime = dt_to_filetime(ts)
+
+            self.__write_int(writer, filetime, 8)
+
+    def build_header(self, writer: BufferedWriter):
+        names_block = self.__build_names_block()
+
+        writer.write(self.__endianness.value.to_bytes(1))
+        self.__write_int(writer, self.__version.value, 4)
+        self.__write_int(writer, len(self.__folders), 4)
+        self.__write_int(writer, len(self.__files), 4)
+
+        if self.__version != PackageVersion.ALAN_WAKE:
+            self.__write_int(writer, 1, 8)
+
+        self.__write_int(writer, len(names_block), 4)
+
+        writer.write(b"d:\\data")
+        writer.write(b"\0" * 121)
+
+        for folder in self.__folders:
+            self.__write_folder_entry(writer, folder)
+
+        for file in self.__files:
+            self.__write_file_entry(writer, file)
+
+        self.__write_int(writer, 0, 4)
+        writer.write(b"\xff" * (self.__readsize * 2))
+        writer.write(b"ctor")
+        writer.write(b"\xff" * (self.__readsize * 3))
+        writer.write(names_block)
