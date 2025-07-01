@@ -31,3 +31,21 @@ class RemedyCharacter:
             width=(self.xMax_1 * texture_width) - x,
             height=(self.yMax_1 * texture_height) - y,
         )
+
+    def to_character(
+        self, texture_width, texture_height, advance, line_height, font_size
+    ):
+        from northlighttools.binfnt.dataclasses.character import Character
+
+        point = self.to_point(texture_width, texture_height)
+
+        return Character(
+            x=round(point.x),
+            y=round(point.y),
+            width=round(point.width),
+            height=round(point.height),
+            xoffset=self.bearingX1_1 * font_size,
+            yoffset=line_height - self.bearingY2_1 * font_size - point.height,
+            xadvance=advance.xadvance2_1 * font_size,
+            chnl={0: 4, 1: 2, 2: 1}.get(advance.chnl, 0),
+        )
