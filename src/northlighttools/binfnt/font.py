@@ -4,6 +4,7 @@ from struct import unpack
 
 from northlighttools.binfnt.dataclasses.advance import Advance
 from northlighttools.binfnt.dataclasses.character_rmd import RemedyCharacter
+from northlighttools.binfnt.dataclasses.kerning import Kerning
 from northlighttools.binfnt.dataclasses.unknown import Unknown
 from northlighttools.binfnt.enumerators.font_version import FontVersion
 from northlighttools.rmdp import Progress
@@ -20,6 +21,7 @@ class BinaryFont:
         self.__unknowns: list[Unknown] = []
         self.__advances: list[Advance] = []
         self.__id_table: list[int] = []
+        self.__kernings: list[Kerning] = []
 
         if file_path is not None:
             self.__load(file_path)
@@ -32,6 +34,7 @@ class BinaryFont:
             self.__read_unknown_block(reader)
             self.__read_advance_block(reader)
             self.__read_id_table(reader)
+            self.__read_kerning_block(reader)
 
     def __read_character_block(self, reader):
         self.__progress.console.log("Reading character block...")
@@ -77,3 +80,20 @@ class BinaryFont:
             current_id += 1
 
         self.__id_table.insert(0, self.__id_table[0] - 1)
+
+    def __read_kerning_block(self, reader):
+        self.__progress.console.log("Reading kerning block...")
+
+        kerning_count = int.from_bytes(reader.read(4), "little")
+        self.__kernings = []
+
+        match self.__version:
+            case FontVersion.ALAN_WAKE_REMASTERED:
+                fmt, size = "2Ii", 12
+            case FontVersion.QUANTUM_BREAK:
+                fmt, size = "2Hf", 8
+            case _:
+                return
+
+        for _ in range(kerning_count):
+            self.__kernings.append(Kerning(*unpack(fmt, reader.read(size))))
