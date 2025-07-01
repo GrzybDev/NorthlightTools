@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from northlighttools.binfnt.dataclasses.point import Point
+
 
 @dataclass
 class RemedyCharacter:
@@ -19,3 +21,13 @@ class RemedyCharacter:
     bearingY1_2: float  # bearing_y2 + char_height = line_height - y_offset
     xMin_2: float
     yMin_2: float
+
+    def to_point(self, texture_width, texture_height):
+        x, y = self.xMin_1 * texture_width, self.yMin_1 * texture_height
+
+        return Point(
+            x=x,
+            y=y,
+            width=(self.xMax_1 * texture_width) - x,
+            height=(self.yMax_1 * texture_height) - y,
+        )
