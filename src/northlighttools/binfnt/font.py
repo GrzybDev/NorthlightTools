@@ -22,6 +22,9 @@ class BinaryFont:
     __texture_size: int | None = None
     __unknown_dds_header: int | None = None
 
+    __line_height: float = 0
+    __font_size: float = 0
+
     def __init__(self, progress: Progress, file_path: Path | None = None):
         self.__progress = progress
 
@@ -44,6 +47,8 @@ class BinaryFont:
             self.__read_id_table(reader)
             self.__read_kerning_block(reader)
             self.__read_texture(reader)
+
+            self.__calculate_font_properties()
 
     def __read_character_block(self, reader):
         self.__progress.console.log("Reading character block...")
@@ -120,3 +125,39 @@ class BinaryFont:
 
         self.__progress.console.log("Loading texture into memory...")
         self.__texture = Image.open(BytesIO(converted_texture))
+
+    def __calculate_font_properties(self):
+        if not self.__texture:
+            self.__progress.console.log(
+                "No texture loaded, cannot calculate font properties."
+            )
+            return
+
+        self.__progress.console.log("Calculating font properties...")
+
+        line_heights, sizes = [], []
+
+        for idx, char in enumerate(self.__characters):
+            point = char.to_point(
+                texture_width=self.__texture.width,
+                texture_height=self.__texture.height,
+            )
+
+            try:
+                size = point.height / (char.bearingY1_1 - char.bearingY2_1)
+            except ZeroDivisionError:
+                size = 0
+
+            line_height = (
+                -self.__advances[idx].yoffset2_1 * size
+                + point.height
+                + char.bearingY2_1 * size
+            )
+
+            line_heights.append(line_height)
+            sizes.append(size)
+
+        self.__line_height = (
+            max(set(line_heights), key=line_heights.count) if line_heights else 0
+        )
+        self.__font_size = max(set(sizes), key=sizes.count) if sizes else 0
