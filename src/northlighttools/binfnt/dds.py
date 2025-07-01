@@ -3,7 +3,7 @@ from struct import pack
 
 import numpy as np
 
-from northlighttools.binfnt.constants import DDS_BGRA8_HEADER
+from northlighttools.binfnt.constants import DDS_BGRA8_HEADER, DDS_R16F_HEADER
 
 
 class DDS:
@@ -35,6 +35,33 @@ class DDS:
             alpha = int(np.clip(((9 - hGray) * 255) / 18, 0, 255))
             writer.write(
                 pack("BBBB", *((255, 255, 255, alpha) if alpha > 0 else (0, 0, 0, 0)))
+            )
+
+        return writer.getvalue()
+
+    @staticmethod
+    def convert_to_r16f(bgra8_data: bytes):
+        reader = BytesIO(bgra8_data)
+
+        reader.seek(12)
+        textureHeight = int.from_bytes(reader.read(4), "little")
+        textureWidth = int.from_bytes(reader.read(4), "little")
+        reader.seek(128)
+
+        writer = BytesIO()
+        writer.write(DDS_R16F_HEADER[:12])
+        writer.write(textureHeight.to_bytes(4, "little"))
+        writer.write(textureWidth.to_bytes(4, "little"))
+        writer.write((textureWidth * 2).to_bytes(4, "little"))
+        writer.write(DDS_R16F_HEADER[24:])
+
+        for _ in range(textureWidth * textureHeight):
+            b, g, r, a = reader.read(4)
+            hGray = -((18) * a / 255.0 - 9.0)
+            writer.write(
+                np.float16(hGray).tobytes()
+                if a > 0
+                else int.to_bytes(32767, 2, "little")
             )
 
         return writer.getvalue()
