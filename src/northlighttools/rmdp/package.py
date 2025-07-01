@@ -222,3 +222,62 @@ class Package:
         if file.write_time:
             ts = file.write_time.timestamp()
             os.utime(output_path, (ts, ts))
+
+    def __create_root_folder(self):
+        """Create a root folder entry with default values."""
+        self.__folders = []
+        self.__files = []
+
+        self.__folder_path_map = {}
+        self.__folder_children_map = {}
+
+        root_folder = FolderEntry(
+            name="",
+            checksum=0,
+            flags=0,
+            name_offset=self.__null_id,
+            next_file_id=self.__null_id,
+            next_folder_id=self.__null_id,
+            next_parent_folder_id=self.__null_id,
+            parent_folder_id=self.__null_id,
+        )
+
+        self.__folders.append(root_folder)
+        self.__folder_path_map[Path(".")] = root_folder
+        self.__folder_children_map[root_folder] = []
+
+    def add_folder(self, path: Path):
+        folder_name = path.name
+
+        if path.parent == Path("."):
+            # If the parent is empty, create the root folder
+            self.__create_root_folder()
+
+            folder_name = (
+                folder_name.replace("_", ":")
+                if len(self.__folders) == 1
+                else folder_name
+            )
+
+        parent_folder = self.__folder_path_map[path.parent]
+        child_folders = self.__folder_children_map.get(parent_folder, [])
+
+        if child_folders:
+            child_folders[-1].next_folder_id = len(self.__folders)
+        else:
+            parent_folder.next_parent_folder_id = len(self.__folders)
+
+        entry = FolderEntry(
+            name=folder_name,
+            checksum=zlib.crc32(folder_name.lower().encode()),
+            flags=0,
+            name_offset=self.__null_id,
+            next_file_id=self.__null_id,
+            next_folder_id=self.__null_id,
+            next_parent_folder_id=self.__null_id,
+            parent_folder_id=self.__folders.index(parent_folder),
+        )
+
+        self.__folders.append(entry)
+        self.__folder_path_map[path] = entry
+        self.__folder_children_map.setdefault(parent_folder, []).append(entry)
