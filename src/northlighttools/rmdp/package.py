@@ -1,8 +1,10 @@
 import os
 import zlib
+from io import BufferedReader
 from pathlib import Path
 from typing import Literal
 
+from northlighttools.rmdp.constants import CHUNK_SIZE
 from northlighttools.rmdp.dataclasses.entry_file import FileEntry
 from northlighttools.rmdp.dataclasses.entry_folder import FolderEntry
 from northlighttools.rmdp.enumerators.endianness import Endianness
@@ -193,3 +195,30 @@ class Package:
     def get_file_path(self, file: FileEntry) -> Path:
         parent_folder = self.folders[file.parent_folder_id]
         return Path(self.get_folder_path(parent_folder), file.name)
+
+    def extract(self, reader: BufferedReader, file: FileEntry, output_path: Path):
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        reader.seek(file.offset)
+
+        with output_path.open("wb") as out_file:
+            actual_checksum = 0
+            remaining_bytes = file.size
+
+            while remaining_bytes > 0:
+                chunk_size = min(remaining_bytes, CHUNK_SIZE)
+                chunk = reader.read(chunk_size)
+
+                if not chunk:
+                    raise ValueError(
+                        f"Unexpected end of file while reading {file.name}. "
+                        f"Expected {file.size} bytes, but got {file.size - remaining_bytes + chunk_size} bytes."
+                    )
+
+                out_file.write(chunk)
+
+                actual_checksum = zlib.crc32(chunk, actual_checksum)
+                remaining_bytes -= len(chunk)
+
+        if file.write_time:
+            ts = file.write_time.timestamp()
+            os.utime(output_path, (ts, ts))
