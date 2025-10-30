@@ -30,13 +30,13 @@ Northlight Tools provides the following utilities:
 
 - **Binary Font Tools (`binfnt`)**:  
   Supports decompiling and compiling Northlight binary font files (`.binfnt`).  
-  - Decompile: Convert `.binfnt` to BMFont text and bitmap(s), optionally extracting each character as a separate image.
-  - Compile: Build a `.binfnt` from BMFont text and bitmap(s).
+  - Decompile: Convert `.binfnt` to editable xml metadata and png bitmap(s), optionally extracting each character to seperate bitmap file.
+  - Compile: Build a `.binfnt` from xml metadata and bitmap(s).
 
 Requirements
 ------------
 
-- Python 3.10+
+- Python 3.11+
 
 Installing
 ----------
@@ -122,9 +122,9 @@ To save each character as a separate image:
 northlighttools binfnt decompile path/to/font.binfnt path/to/output_dir --separate-chars
 ```
 
-Compile JSON and bitmap(s) back to `.binfnt`:
+Compile metadata and bitmap(s) back to `.binfnt`:
 ```sh
-northlighttools binfnt compile path/to/modified.json path/to/output.binfnt
+northlighttools binfnt compile path/to/modified.xml path/to/output.binfnt
 ```
 
 ---
