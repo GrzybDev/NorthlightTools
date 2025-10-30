@@ -10,7 +10,7 @@ app = typer.Typer(help="Tools for .binfnt files (Binary font files)")
 
 
 @app.command(
-    name="decompile", help="Decompile binary font to editable JSON and bitmap(s)"
+    name="decompile", help="Decompile binary font to editable metadata and bitmap(s)"
 )
 def cmd_decompile(
     input_file: Annotated[
@@ -49,17 +49,17 @@ def cmd_decompile(
         task = progress.add_task("Decompiling...", total=1)
 
         binfnt = BinaryFont(progress, input_file)
-        binfnt.dump(output_dir, separate_chars)
+        binfnt.decompile(output_dir, separate_chars)
 
         progress.update(task, advance=1, description="Decompiled successfully")
 
 
-@app.command(name="compile", help="Compile JSON and bitmap(s) to binary font")
+@app.command(name="compile", help="Compile metadata and bitmap(s) to binary font")
 def cmd_compile(
     input_file: Annotated[
         Path,
         typer.Argument(
-            help="Input JSON file path",
+            help="Input metadata file path",
             exists=True,
             readable=True,
             file_okay=True,
@@ -88,8 +88,8 @@ def cmd_compile(
         task = progress.add_task("Compiling...", total=1)
 
         binfnt = BinaryFont(progress)
-        binfnt.from_json(input_file, separate_chars)
-        binfnt.build(output_file)
+        binfnt.compile(input_file, separate_chars)
+        binfnt.save(output_file)
 
         progress.update(task, advance=1, description="Compiled successfully")
 

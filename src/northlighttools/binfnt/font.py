@@ -1,5 +1,6 @@
-import json
 import os
+import xml.dom.minidom
+import xml.etree.ElementTree as ET
 from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
@@ -169,48 +170,97 @@ class BinaryFont:
         )
         self.__font_size = max(set(sizes), key=sizes.count) if sizes else 0
 
-    def dump(self, output_path: Path, separate_characters: bool = False):
+    def __get_character_by_id(self, char_id: int) -> str:
+        return repr(str(chr(self.__id_table[char_id])))[1:-1]
+
+    def decompile(self, output_path: Path, separate_characters: bool = False):
         if not self.__texture:
             self.__progress.console.log("No texture data available, cannot save font.")
             return
 
         self.__progress.console.log("Saving font data...")
 
-        # Dump the font data to a json file
-        font_path = output_path / f"{self.__font_name}.json"
+        # Dump the font data to a xml file
+        font_path = output_path / f"{self.__font_name}.xml"
+
+        root = ET.Element(
+            "BinaryFont",
+            version=str(self.__version.value),
+            line_height=str(self.__line_height),
+            font_size=str(self.__font_size),
+        )
+
+        # Characters
+        chars_elem = ET.SubElement(root, "Characters")
+        for char_id, char in enumerate(self.__characters):
+            char_data = char.to_character(
+                texture_width=self.__texture.width,
+                texture_height=self.__texture.height,
+                advance=self.__advances[char_id],
+                line_height=self.__line_height,
+                font_size=self.__font_size,
+            )
+
+            ET.SubElement(
+                chars_elem,
+                "Character",
+                char=self.__get_character_by_id(char_id),
+                x=str(char_data.x),
+                y=str(char_data.y),
+                width=str(char_data.width),
+                height=str(char_data.height),
+                xoffset=str(char_data.xoffset),
+                yoffset=str(char_data.yoffset),
+                xadvance=str(char_data.xadvance),
+                chnl=str(char_data.chnl),
+            )
+
+        # Kernings
+        kerns_elem = ET.SubElement(root, "Kernings")
+        for kern in self.__kernings:
+            ET.SubElement(
+                kerns_elem,
+                "Kerning",
+                first=str(kern.first),
+                second=str(kern.second),
+                amount=str(kern.amount),
+            )
+
+        # Unknowns
+        unks_elem = ET.SubElement(root, "Unknowns")
+        for unk in self.__unknowns:
+            ET.SubElement(
+                unks_elem,
+                "Unknown",
+                n1=str(unk.n1),
+                n2=str(unk.n2),
+                n3=str(unk.n3),
+                n4=str(unk.n4),
+                n5=str(unk.n5),
+                n6=str(unk.n6),
+            )
+
+        # Texture
+        texture_elem = ET.SubElement(root, "Texture")
+        if self.__texture_size is not None:
+            ET.SubElement(texture_elem, "Size").text = str(self.__texture_size)
+
+        if separate_characters:
+            ET.SubElement(texture_elem, "Width").text = str(self.__texture.width)
+            ET.SubElement(texture_elem, "Height").text = str(self.__texture.height)
+
+        # Unknown DDS Header
+        if self.__unknown_dds_header is not None:
+            ET.SubElement(
+                root,
+                "UnknownDDSHeader",
+            ).text = str(self.__unknown_dds_header)
+
+        xmlstr = ET.tostring(root, encoding="utf-8")
+        pretty_xml = xml.dom.minidom.parseString(xmlstr).toprettyxml()
 
         with font_path.open("w", encoding="utf-8") as f:
-            font_data = {
-                "version": self.__version.value,
-                "line_height": self.__line_height,
-                "font_size": self.__font_size,
-                "characters": {
-                    self.__id_table[char_id]: asdict(
-                        char.to_character(
-                            texture_width=self.__texture.width,
-                            texture_height=self.__texture.height,
-                            advance=self.__advances[char_id],
-                            line_height=self.__line_height,
-                            font_size=self.__font_size,
-                        )
-                    )
-                    for char_id, char in enumerate(self.__characters)
-                },
-                "kernings": [
-                    asdict(ker.without_font_size(self.__font_size, self.__version))
-                    for ker in self.__kernings
-                ],
-                "unknowns": [asdict(unk) for unk in self.__unknowns],
-                "texture_size": self.__texture_size,
-                "unknown_dds_header": self.__unknown_dds_header,
-            }
-
-            if separate_characters:
-                font_data["texture_width"] = self.__texture.width
-                font_data["texture_height"] = self.__texture.height
-
-            data = json.dumps(font_data, indent=4, ensure_ascii=False)
-            f.write(data)
+            f.write(pretty_xml)
 
         if not separate_characters:
             # Save the texture as a PNG file
@@ -249,66 +299,134 @@ class BinaryFont:
             char_texture_path = chars_dir / f"{self.__id_table[char_id]}.png"
             char_texture.save(char_texture_path, format="PNG")
 
-    def from_json(self, json_path: Path, separate_characters: bool = False):
-        self.__progress.console.log("Loading font data from JSON...")
+    def __char_to_id(self, char_id: str) -> int:
+        try:
+            return ord(char_id.encode("utf-8").decode("unicode_escape"))
+        except:
+            return ord(char_id)
 
-        with json_path.open("r", encoding="utf-8") as f:
-            font_data = json.load(f)
+    def compile(self, meta_path: Path, separate_characters: bool = False):
+        self.__progress.console.log("Loading font data...")
+
+        with meta_path.open("r", encoding="utf-8") as f:
+            font_data = ET.parse(f).getroot()
 
         if not separate_characters:
             texture_width, texture_height = Image.open(
-                json_path.with_suffix(".png")
+                meta_path.with_suffix(".png")
             ).size
         else:
-            texture_width = font_data.get("texture_width")
-            texture_height = font_data.get("texture_height")
+            __texture_width = font_data.find("Texture/Width")
+            __texture_height = font_data.find("Texture/Height")
 
-            if texture_width is None or texture_height is None:
+            if (__texture_width is None or __texture_width.text is None) or (
+                __texture_height is None or __texture_height.text is None
+            ):
                 raise ValueError(
-                    "Texture width and height must be provided for separate characters."
+                    "Texture width and height elements must be provided for separate characters."
                 )
 
-        self.__version = FontVersion(font_data["version"])
-        self.__line_height = font_data["line_height"]
-        self.__font_size = font_data["font_size"]
+            texture_width = int(__texture_width.text)
+            texture_height = int(__texture_height.text)
 
-        chars = [
-            Character(**char_data) for char_data in font_data["characters"].values()
-        ]
+        self.__version = FontVersion(
+            int(font_data.attrib.get("version", str(FontVersion.QUANTUM_BREAK.value)))
+        )
+        self.__line_height = float(font_data.attrib.get("line_height", "0"))
+        self.__font_size = float(font_data.attrib.get("font_size", "0"))
+
+        characters_elem = font_data.find("Characters")
+        if characters_elem is None:
+            raise ValueError("Characters element not found in metadata file.")
+
+        chars = {}
+        for char_elem in characters_elem.findall("Character"):
+            char_id = char_elem.attrib.get("char")
+
+            if char_id is None:
+                raise ValueError("Character ID (char attribute) is missing in XML.")
+
+            char_id = self.__char_to_id(char_id)
+
+            char_data = {
+                "x": int(char_elem.attrib.get("x", "0")),
+                "y": int(char_elem.attrib.get("y", "0")),
+                "width": int(char_elem.attrib.get("width", "0")),
+                "height": int(char_elem.attrib.get("height", "0")),
+                "xoffset": float(char_elem.attrib.get("xoffset", "0")),
+                "yoffset": float(char_elem.attrib.get("yoffset", "0")),
+                "xadvance": float(char_elem.attrib.get("xadvance", "0")),
+                "chnl": int(char_elem.attrib.get("chnl", "0")),
+            }
+
+            chars[char_id] = Character(**char_data)
 
         self.__characters = [
-            Character(**char_data).to_remedy_character(
+            chars[char_id].to_remedy_character(
                 char_id,
                 texture_width,
                 texture_height,
                 self.__line_height,
                 self.__font_size,
             )
-            for char_id, char_data in font_data["characters"].items()
+            for char_id in chars.keys()
         ]
 
-        self.__advance = [
+        self.__advances = [
             Advance.calculate_values(
                 char,
                 idx,
                 self.__font_size,
             )
-            for idx, char in enumerate(chars)
+            for idx, char in enumerate(chars.values())
         ]
+
+        kernings_elem = font_data.find("Kernings")
+
+        if kernings_elem is None:
+            raise ValueError("Kernings element not found in metadata file.")
 
         self.__kernings = [
-            Kerning(**ker).with_font_size(self.__font_size, self.__version)
-            for ker in font_data["kernings"]
+            Kerning(
+                first=int(kerning_elem.attrib.get("first", "0")),
+                second=int(kerning_elem.attrib.get("second", "0")),
+                amount=float(kerning_elem.attrib.get("amount", "0")),
+            ).with_font_size(self.__font_size, self.__version)
+            for kerning_elem in kernings_elem.findall("Kerning")
         ]
 
-        self.__unknown = [Unknown(**unk) for unk in font_data["unknowns"]]
+        unknowns_elem = font_data.find("Unknowns")
+        if unknowns_elem is None:
+            raise ValueError("Unknowns element not found in metadata file.")
 
-        self.__id_table = list(font_data["characters"].keys())
-        self.__texture_size = font_data.get("texture_size")
-        self.__unknown_dds_header = font_data.get("unknown_dds_header")
+        self.__unknowns = [
+            Unknown(
+                n1=int(unknown_elem.attrib.get("n1", "0")),
+                n2=int(unknown_elem.attrib.get("n2", "0")),
+                n3=int(unknown_elem.attrib.get("n3", "0")),
+                n4=int(unknown_elem.attrib.get("n4", "0")),
+                n5=int(unknown_elem.attrib.get("n5", "0")),
+                n6=int(unknown_elem.attrib.get("n6", "0")),
+            )
+            for unknown_elem in unknowns_elem.findall("Unknown")
+        ]
+
+        self.__id_table = list(chars.keys())
+        __texture_size = font_data.find("Texture/Size")
+
+        if __texture_size is not None and __texture_size.text is not None:
+            self.__texture_size = int(__texture_size.text)
+
+        unknown_dds_header_elem = font_data.find("UnknownDDSHeader")
+        if (
+            unknown_dds_header_elem is not None
+            and unknown_dds_header_elem.text is not None
+        ):
+            self.__unknown_dds_header = int(unknown_dds_header_elem.text)
 
         # Load the texture if it exists
-        texture_path = json_path.with_suffix(".png")
+        texture_path = meta_path.with_suffix(".png")
+
         if texture_path.exists():
             self.__progress.console.log("Loading texture from PNG file...")
             self.__texture = Image.open(texture_path)
@@ -317,31 +435,35 @@ class BinaryFont:
             self.__texture = Image.new(
                 "RGBA", (texture_width, texture_height), ATLAS_NULL_COLOR
             )
-            chars_path = json_path.parent / CHARS_FOLDER
+            chars_path = meta_path.parent / CHARS_FOLDER
 
             self.__progress.console.log(
                 "Creating texture atlas from character files..."
             )
-            for idx, char_data in enumerate(font_data["characters"].values()):
-                char = Character(**char_data)
+            for idx, char_data in enumerate(chars.values()):
                 char_idx = self.__id_table[idx]
                 char_path = chars_path / f"{char_idx}.png"
 
-                if char.width == 0 or char.height == 0:
+                if char_data.width == 0 or char_data.height == 0:
                     continue
 
                 if char_path.exists():
                     char_texture = Image.open(char_path)
                     self.__texture.paste(
                         char_texture,
-                        (char.x, char.y, char.x + char.width, char.y + char.height),
+                        (
+                            char_data.x,
+                            char_data.y,
+                            char_data.x + char_data.width,
+                            char_data.y + char_data.height,
+                        ),
                     )
                 else:
                     self.__progress.console.log(
                         f"Warning: Character texture file not found: {char_path}"
                     )
 
-    def build(self, output_path: Path):
+    def save(self, output_path: Path):
         if not self.__texture:
             raise ValueError("Texture is not loaded. Cannot compile.")
 
@@ -373,15 +495,15 @@ class BinaryFont:
             writer.write(pack("16f", *asdict(char).values()))
 
     def __write_unknown_block(self, writer):
-        writer.write((len(self.__unknown) * 6).to_bytes(4, "little"))
+        writer.write((len(self.__unknowns) * 6).to_bytes(4, "little"))
 
-        for unk in self.__unknown:
+        for unk in self.__unknowns:
             writer.write(pack("6H", *asdict(unk).values()))
 
     def __write_advance_block(self, writer):
-        writer.write((len(self.__advance)).to_bytes(4, "little"))
+        writer.write((len(self.__advances)).to_bytes(4, "little"))
 
-        for adv in self.__advance:
+        for adv in self.__advances:
             writer.write(pack("4HI8f", *asdict(adv).values()))
 
     def __write_id_table(self, writer):
