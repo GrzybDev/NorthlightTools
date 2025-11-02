@@ -43,7 +43,7 @@ def cmd_decompile(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with Progress(
-        SpinnerColumn(finished_text="\u2713"),
+        SpinnerColumn(finished_text=":white_check_mark:"),
         TextColumn("[progress.description]{task.description}"),
     ) as progress:
         task = progress.add_task("Decompiling...", total=1)
@@ -82,7 +82,7 @@ def cmd_compile(
     separate_chars = not input_file.with_suffix(".png").exists()
 
     with Progress(
-        SpinnerColumn(finished_text="\u2713"),
+        SpinnerColumn(finished_text=":white_check_mark:"),
         TextColumn("[progress.description]{task.description}"),
     ) as progress:
         task = progress.add_task("Compiling...", total=1)

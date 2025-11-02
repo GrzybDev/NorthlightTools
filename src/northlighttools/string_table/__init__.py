@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich import print
 
 from northlighttools.string_table.enumerators.data_format import DataFormat
 from northlighttools.string_table.enumerators.missing_string_behaviour import (
@@ -51,7 +52,7 @@ def cmd_export(
     table = StringTable(input_file=input_path)
     table.export(output_path, output_type)
 
-    typer.echo(f"Successfully exported string table to {output_path}!")
+    print(f"Successfully exported string table to {output_path}!")
 
 
 @app.command(name="import", help="Generate string_table.bin from input file")
@@ -92,7 +93,7 @@ def cmd_import(
     table.load_from(input_path, missing_strings=missing_strings)
     table.save(output_path)
 
-    typer.echo(f"Successfully imported string table to {output_path}!")
+    print(f"Successfully imported string table to {output_path}!")
 
 
 if __name__ == "__main__":

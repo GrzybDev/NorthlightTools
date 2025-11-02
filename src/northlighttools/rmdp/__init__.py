@@ -1,7 +1,10 @@
 from pathlib import Path
 from typing import Annotated
 
+import humanize
 import typer
+from rich import print
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -12,6 +15,7 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+from rich.table import Table
 
 from northlighttools.rmdp.enumerators.endianness import Endianness, EndiannessChoice
 from northlighttools.rmdp.enumerators.package_version import (
@@ -55,15 +59,15 @@ def info(
         )
         package = Package(header_path=bin_path)
 
-    typer.echo(f"Endianness: {package.endianness}")
-    typer.echo(f"Version: {package.version.name} ({package.version.value})")
-    typer.echo(f"Number of folders: {len(package.folders)}")
-    typer.echo(f"Number of files: {len(package.files)}")
+    print(f"Endianness: {package.endianness} ({package.endianness.name.title()})")
+    print(
+        f"Version: {package.version} ({package.version.name.replace('_', ' ').title()})"
+    )
+    print(f"Number of folders: {len(package.folders)}")
+    print(f"Number of files: {len(package.files)}")
 
     if print_unknown_metadata:
-        typer.echo("Unknown metadata:")
-        for key, value in package.unknown_data.items():
-            typer.echo(f"  {key}: {value}")
+        print("Unknown metadata:", package.unknown_data)
 
 
 @app.command(name="list", help="Lists files in a Remedy Package")
@@ -79,6 +83,7 @@ def contents(
         ),
     ],
 ):
+    console = Console()
     bin_path, _ = get_archive_paths(archive_path)
 
     with Progress(transient=True) as progress:
@@ -88,9 +93,17 @@ def contents(
         )
         package = Package(header_path=bin_path)
 
+    table = Table("File Path", "Size", "Offset")
+
     for file in package.files:
         file_path = package.get_file_path(file)
-        typer.echo(f"{file_path} (Size: {file.size} bytes, Offset: {file.offset})")
+        table.add_row(
+            str(file_path),
+            humanize.naturalsize(file.size),
+            hex(file.offset),
+        )
+
+    console.print(table)
 
 
 @app.command(help="Extracts a Remedy Package")
@@ -127,27 +140,26 @@ def extract(
         )
         package = Package(header_path=bin_path)
 
-    progress = Progress(
-        SpinnerColumn(finished_text="\u2713"),
+    with Progress(
+        SpinnerColumn(finished_text=":white_check_mark:"),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
         TaskProgressColumn(),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
-    )
+    ) as progress:
+        with rmdp_path.open("rb") as f:
+            for file in progress.track(
+                package.files,
+                description="Extracting files...",
+            ):
+                file_path = package.get_file_path(file)
+                output_path = output_dir / file_path
 
-    with progress and rmdp_path.open("rb") as f:
-        for file in progress.track(
-            package.files,
-            description="Extracting files...",
-        ):
-            file_path = package.get_file_path(file)
-            output_path = output_dir / file_path
+                progress.console.log(f"Extracting {file_path}...")
 
-            progress.console.log(f"Extracting {file_path}...")
-
-            package.extract(f, file, output_path)
+                package.extract(f, file, output_path)
 
 
 @app.command(help="Pack directory into a Remedy Package")
@@ -195,21 +207,19 @@ def pack(
     bin_path = output_dir.with_suffix(".bin")
     rmdp_path = output_dir.with_suffix(".rmdp")
 
-    progress = Progress(
-        SpinnerColumn(finished_text="\u2713"),
+    package = Package()
+    package.endianness = Endianness[endianness.name.upper()]
+    package.version = PackageVersion(int(version))
+
+    with Progress(
+        SpinnerColumn(finished_text=":white_check_mark:"),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
         TaskProgressColumn(),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
-    )
-
-    package = Package()
-    package.endianness = Endianness[endianness.name.upper()]
-    package.version = PackageVersion(int(version))
-
-    with progress:
+    ) as progress:
         with rmdp_path.open("wb") as rmdp_file:
             for path in progress.track(
                 sorted(input_dir.rglob("*")),
