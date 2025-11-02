@@ -11,7 +11,8 @@ dependencies = [
     "typer (>=0.20.0,<0.21.0)",
     "polib @ git+https://github.com/GrzybDev/polib.git@state-machine-fix",
     "numpy (>=2.3.4,<3.0.0)",
-    "pillow (>=12.0.0,<13.0.0)"
+    "pillow (>=12.0.0,<13.0.0)",
+    "humanize (>=4.14.0,<5.0.0)"
 ]
 
 [tool.poetry]

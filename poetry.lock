@@ -29,6 +29,21 @@ files = [
 ]
 
 [[package]]
+name = "humanize"
+version = "4.14.0"
+description = "Python humanize utilities"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "humanize-4.14.0-py3-none-any.whl", hash = "sha256:d57701248d040ad456092820e6fde56c930f17749956ac47f4f655c0c547bfff"},
+    {file = "humanize-4.14.0.tar.gz", hash = "sha256:2fa092705ea640d605c435b1ca82b2866a1b601cdf96f076d70b79a855eba90d"},
+]
+
+[package.extras]
+tests = ["freezegun", "pytest", "pytest-cov"]
+
+[[package]]
 name = "markdown-it-py"
 version = "3.0.0"
 description = "Python port of markdown-it. Markdown parsing, done right!"
@@ -353,4 +368,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "bcbebb42dedbd764f33230e26cce01060c685ade6301be5f7c52eed6fd7f1658"
+content-hash = "d490b425256c43ad24cdafc6547f2d39e8a17f553602192a748236114f4f193d"
