@@ -203,6 +203,7 @@ class BinaryFont:
             ET.SubElement(
                 chars_elem,
                 "Character",
+                index=str(self.__id_table[char_id]),
                 char=self.__get_character_by_id(char_id),
                 x=str(char_data.x),
                 y=str(char_data.y),
@@ -337,6 +338,8 @@ class BinaryFont:
             raise ValueError("Characters element not found in metadata file.")
 
         chars = {}
+        char_index_map = {}
+
         for char_elem in characters_elem.findall("Character"):
             char_id = char_elem.attrib.get("char")
 
@@ -357,6 +360,7 @@ class BinaryFont:
             }
 
             chars[char_id] = Character(**char_data)
+            char_index_map[char_id] = int(char_elem.attrib.get("index", "0"))
 
         self.__characters = [
             chars[char_id].to_remedy_character(
@@ -442,7 +446,8 @@ class BinaryFont:
                 "Creating texture atlas from character files..."
             )
             for idx, char_data in enumerate(chars.values()):
-                char_idx = self.__id_table[idx]
+                # Use index from XML to get character to load
+                char_idx = char_index_map[self.__id_table[idx]]
                 char_path = chars_path / f"{char_idx}.png"
 
                 if char_data.width == 0 or char_data.height == 0:
