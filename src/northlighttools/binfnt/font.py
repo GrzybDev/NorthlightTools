@@ -1,5 +1,4 @@
 import os
-import xml.dom.minidom
 import xml.etree.ElementTree as ET
 from dataclasses import asdict
 from io import BytesIO
@@ -256,11 +255,9 @@ class BinaryFont:
                 "UnknownDDSHeader",
             ).text = str(self.__unknown_dds_header)
 
-        xmlstr = ET.tostring(root, encoding="utf-8")
-        pretty_xml = xml.dom.minidom.parseString(xmlstr).toprettyxml()
-
-        with font_path.open("w", encoding="utf-8") as f:
-            f.write(pretty_xml)
+        tree = ET.ElementTree(root)
+        ET.indent(tree)
+        tree.write(font_path, encoding="utf-8", xml_declaration=True)
 
         if not separate_characters:
             # Save the texture as a PNG file
