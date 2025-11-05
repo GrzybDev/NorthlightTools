@@ -432,6 +432,10 @@ class BinaryFont:
             self.__texture = Image.new(
                 "RGBA", (texture_width, texture_height), ATLAS_NULL_COLOR
             )
+
+            if not self.__texture:
+                raise ValueError("Failed to create empty texture atlas.")
+
             chars_path = meta_path.parent / CHARS_FOLDER
 
             self.__progress.console.log(
