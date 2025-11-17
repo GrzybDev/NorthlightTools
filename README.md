@@ -113,7 +113,7 @@ You can customize the package creation with these options:
 
 ### Binary Font Tools (`binfnt`)
 
-Decompile a `.binfnt` file to editable JSON and bitmap(s):
+Decompile a `.binfnt` file to editable XML and bitmap(s):
 ```sh
 northlighttools binfnt decompile path/to/font.binfnt path/to/output_dir
 ```
