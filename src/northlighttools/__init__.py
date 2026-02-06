@@ -17,6 +17,3 @@ app.add_typer(
     name="string-table",
     help="Tools for string tables in Remedy games (string_table.bin files)",
 )
-
-if __name__ == "__main__":
-    app()
