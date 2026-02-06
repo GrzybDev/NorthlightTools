@@ -1,26 +1,29 @@
 [project]
 name = "northlighttools"
 version = "1.2.0"
-description = ""
+description = "Collection of various tools for Northlight Engine used for Polish fan translation of Quantum Break!"
 authors = [
     {name = "Marek Grzyb",email = "marek@grzyb.dev"}
 ]
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = [
+    "LICENSE.md",
+]
 requires-python = ">=3.11"
 dependencies = [
-    "typer (>=0.20.0,<0.21.0)",
-    "polib @ git+https://github.com/GrzybDev/polib.git@state-machine-fix",
-    "numpy (>=2.3.4,<3.0.0)",
-    "pillow (>=12.0.0,<13.0.0)",
-    "humanize (>=4.14.0,<5.0.0)"
+    "typer>=0.21.1",
+    "polib",
+    "numpy>=2.4.2",
+    "pillow>=12.1.0",
+    "humanize>=4.15.0",
 ]
 
-[tool.poetry]
-packages = [{include = "northlighttools", from = "src"}]
+[tool.uv]
+package = true
 
-[tool.poetry.scripts]
+[tool.uv.sources]
+polib = { git = "https://github.com/GrzybDev/polib.git", branch = "state-machine-fix" }
+
+[project.scripts]
 northlighttools = "northlighttools:app"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
