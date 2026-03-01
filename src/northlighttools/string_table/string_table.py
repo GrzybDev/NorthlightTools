@@ -37,7 +37,7 @@ class StringTable:
                 storage = xliff.Xliff1File()
                 unit_class = xliff.Xliff1Unit
 
-                storage.createfilenode(self.__input_file)
+                storage.switchfile(self.__input_file, createifmissing=True)
             case DataFormat.XLF:
                 storage = xliff2.Xliff2File()
                 unit_class = xliff2.Xliff2Unit
