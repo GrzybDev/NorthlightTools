@@ -23,8 +23,8 @@ Northlight Tools provides the following utilities:
   - List-files: List all files contained in a package.
 
 - **String Table Tools (`string-table`)**:  
-  Enables conversion between `string_table.bin` and editable formats (XML, JSON, CSV, PO), and re-importing translations.  
-  - Export: Convert `string_table.bin` to XML, JSON, CSV, or PO for translation.
+  Enables conversion between `string_table.bin` and editable formats (XLIFF, XLIFF2, CSV, PO), and re-importing translations.  
+  - Export: Convert `string_table.bin` to XLIFF (.xliff), XLIFF2 (.xlf), CSV, or PO for translation.
   - Import: Generate a new `string_table.bin` from a translated file.
   - Flexible handling of missing translations with the `--missing-strings` option.
 
@@ -60,17 +60,17 @@ northlighttools --help
 
 ### String Table Tools
 
-Export a `string_table.bin` to XML, JSON, CSV, or PO:
+Export a `string_table.bin` to XLIFF (.xliff), XLIFF2 (.xlf), CSV, or PO:
 ```sh
-northlighttools string-table export path/to/string_table.bin --output-type xml
-northlighttools string-table export path/to/string_table.bin --output-type json
+northlighttools string-table export path/to/string_table.bin --output-type xliff
+northlighttools string-table export path/to/string_table.bin --output-type xlf
 northlighttools string-table export path/to/string_table.bin --output-type csv
 northlighttools string-table export path/to/string_table.bin --output-type po
 ```
 
-Import a translation file (XML, JSON, CSV, PO) and generate a new `string_table.bin`:
+Import a translation file (XLIFF, XLF, CSV, PO) and generate a new `string_table.bin`:
 ```sh
-northlighttools string-table import path/to/translated_file.xml
+northlighttools string-table import path/to/translated_file.xliff
 northlighttools string-table import path/to/translated_file.csv --missing-strings key
 ```
 Options for `--missing-strings`:
