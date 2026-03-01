@@ -1,6 +1,6 @@
 [project]
 name = "northlighttools"
-version = "1.2.1"
+version = "1.3.0"
 description = "Collection of various tools for Northlight Engine used for Polish fan translation of Quantum Break!"
 authors = [
     {name = "Marek Grzyb",email = "marek@grzyb.dev"}
