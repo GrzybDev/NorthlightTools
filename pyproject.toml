@@ -13,17 +13,14 @@ license-files = [
 requires-python = ">=3.11"
 dependencies = [
     "typer>=0.21.1",
-    "polib",
     "numpy>=2.4.2",
     "pillow>=12.1.0",
     "humanize>=4.15.0",
+    "translate-toolkit>=3.19.2",
 ]
 
 [tool.uv]
 package = true
-
-[tool.uv.sources]
-polib = { git = "https://github.com/GrzybDev/polib.git", branch = "state-machine-fix" }
 
 [project.scripts]
 northlighttools = "northlighttools:app"

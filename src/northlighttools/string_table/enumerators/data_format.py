@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class DataFormat(str, Enum):
-    XML = "xml"
-    JSON = "json"
-    CSV = "csv"
+    XLIFF = "xliff"
+    XLF = "xliff2"
     PO = "po"
+    CSV = "csv"

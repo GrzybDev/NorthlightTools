@@ -44,9 +44,9 @@ def cmd_export(
             help="Format of the output file",
             case_sensitive=False,
         ),
-    ] = DataFormat.XML,
+    ] = DataFormat.XLF,
 ):
-    output_path = output_path or input_path.with_suffix(f".{output_type.value}")
+    output_path = output_path or input_path.with_suffix(f".{output_type.name.lower()}")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     table = StringTable(input_file=input_path)
