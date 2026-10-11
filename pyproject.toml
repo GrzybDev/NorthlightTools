@@ -15,12 +15,12 @@ dependencies = [
     "typer>=0.27.3",
     "numpy>=2.5.4",
     "pillow>=12.3.0",
-    "humanize>=4.16.0",
     "translate-toolkit>=3.20.0",
+    "rich>=15.0.0",
 ]
 
 [project.scripts]
-northlighttools = "northlighttools:app"
+northlighttools = "northlighttools.cli:app"
 
 [dependency-groups]
 dev = [

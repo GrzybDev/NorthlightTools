@@ -16,7 +16,7 @@ from northlighttools.binfnt.dataclasses.kerning import Kerning
 from northlighttools.binfnt.dataclasses.unknown import Unknown
 from northlighttools.binfnt.dds import DDS
 from northlighttools.binfnt.enumerators.font_version import FontVersion
-from northlighttools.rmdp import Progress
+from rich.progress import Progress
 
 
 class BinaryFont:
