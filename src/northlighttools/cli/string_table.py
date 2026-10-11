@@ -21,7 +21,7 @@ app = typer.Typer(
 
 @app.command(
     name="export",
-    help="Export a string table for translation: XLIFF 2.0 or XLIFF 1.2.",
+    help="Export a string table for translation: XLIFF 2.0, XLIFF 1.2 or Gettext PO.",
 )
 @reports_errors
 def export_command(
@@ -33,7 +33,7 @@ def export_command(
         Path | None,
         typer.Argument(
             help="The file to create (default: next to the input, with the "
-            "format's extension: .xlf or .xliff)",
+            "format's extension: .xlf, .xliff or .po)",
             dir_okay=False,
         ),
     ] = None,
@@ -52,7 +52,7 @@ def export_command(
         typer.Option(
             "--source-language",
             "-l",
-            help="The language of the table's texts, as a BCP 47 tag",
+            help="The language of the table's texts, as a BCP 47 tag (XLIFF only)",
         ),
     ] = "en",
 ) -> None:
@@ -71,7 +71,7 @@ def export_command(
 
 @app.command(
     name="import",
-    help="Build a string table from a translated XLIFF 2.0 or XLIFF 1.2 file; "
+    help="Build a string table from a translated XLIFF 2.0, XLIFF 1.2 or PO file; "
     "untranslated strings keep their original text.",
 )
 @reports_errors

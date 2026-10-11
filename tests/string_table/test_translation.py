@@ -39,7 +39,8 @@ def test_xliff_2_0_is_the_default() -> None:
 
 
 def test_formats_have_their_usual_extensions() -> None:
-    assert [f.suffix for f in TranslationFormat] == [".xlf", ".xliff"]
+    assert [f.suffix for f in TranslationFormat] == [".xlf", ".xliff", ".po"]
+    assert TranslationFormat.of_suffix(".PO") is TranslationFormat.PO
     assert TranslationFormat.of_suffix(".xliff") is TranslationFormat.XLIFF1
     assert TranslationFormat.of_suffix(".txt") is TranslationFormat.XLIFF2
 
@@ -73,5 +74,5 @@ def test_other_xml_documents_are_reported(document: bytes, message: str) -> None
 
 
 def test_empty_files_are_not_taken_for_an_empty_table() -> None:
-    with pytest.raises(FormatError, match="Cannot read the XML document"):
+    with pytest.raises(FormatError, match="holds no units"):
         import_translation(b"")

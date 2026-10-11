@@ -1,5 +1,6 @@
-"""Exchanging string tables with translation tools: XLIFF 2.0 or XLIFF 1.2."""
+"""Exchanging string tables with translation tools: XLIFF 2.0, XLIFF 1.2 or PO."""
 
+import codecs
 import io
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from enum import StrEnum
 from lxml import etree
 
 from northlighttools.errors import FormatError
+from northlighttools.string_table.po import export_po, import_po
 from northlighttools.string_table.table import StringEntry
 from northlighttools.string_table.xliff import (
     XLIFF2_ROOT,
@@ -24,6 +26,7 @@ class TranslationFormat(StrEnum):
 
     XLIFF2 = "xliff-2.0"
     XLIFF1 = "xliff-1.2"
+    PO = "po"
 
     @property
     def suffix(self) -> str:
@@ -47,6 +50,10 @@ class _Codec:
 _CODECS = {
     TranslationFormat.XLIFF2: _Codec(".xlf", export_xliff2, import_xliff2),
     TranslationFormat.XLIFF1: _Codec(".xliff", export_xliff1, import_xliff1),
+    # PO records no source language: its Language header is the translation's.
+    TranslationFormat.PO: _Codec(
+        ".po", lambda entries, filename, _: export_po(entries, filename), import_po
+    ),
 }
 _XLIFF_ROOTS = {
     XLIFF2_ROOT: TranslationFormat.XLIFF2,
@@ -71,7 +78,9 @@ def import_translation(data: bytes) -> tuple[TranslationFormat, list[StringEntry
 
 
 def detect_format(data: bytes) -> TranslationFormat:
-    """Tell an XLIFF document's version by its root element."""
+    """Tell an XLIFF document's version by its root element; anything else is PO."""
+    if not _is_xml(data):
+        return TranslationFormat.PO
     try:
         events = etree.iterparse(
             io.BytesIO(data), events=("start",), resolve_entities=False, no_network=True
@@ -85,3 +94,10 @@ def detect_format(data: bytes) -> TranslationFormat:
         msg = f"Not an XLIFF 2.0 or 1.2 document: its root element is {tag}"
         raise FormatError(msg)
     return found
+
+
+def _is_xml(data: bytes) -> bool:
+    # XML may come in UTF-16, which gettext does not support.
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return True
+    return data.removeprefix(codecs.BOM_UTF8).lstrip().startswith(b"<")

@@ -1,7 +1,9 @@
 """Characters translation documents cannot carry.
 
 XML 1.0 has no place for control characters other than tab, line feed and
-carriage return, for U+FFFE and U+FFFF or for lone surrogates.
+carriage return, for U+FFFE and U+FFFF or for lone surrogates. Gettext tools
+escape or cut the same control characters, and UTF-8 has no lone surrogates,
+so PO is held to the same set.
 """
 
 import re
