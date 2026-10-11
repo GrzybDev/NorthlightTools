@@ -1,7 +1,6 @@
 import typer
 
-from northlighttools import binfnt
-from northlighttools.cli import rmdp, string_table
+from northlighttools.cli import binfnt, rmdp, string_table
 
 app = typer.Typer(
     help="Tools for the files of games made on Remedy's Northlight engine.",
@@ -9,6 +8,4 @@ app = typer.Typer(
 )
 app.add_typer(rmdp.app, name="rmdp")
 app.add_typer(string_table.app, name="string-table")
-app.add_typer(
-    binfnt.app, name="binfnt", help="Tools for .binfnt files (Binary font files)"
-)
+app.add_typer(binfnt.app, name="binfnt")
