@@ -10,13 +10,13 @@ license = "GPL-3.0-or-later"
 license-files = [
     "LICENSE.md",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "typer>=0.21.1",
-    "numpy>=2.4.2",
+    "typer>=0.27.3",
+    "numpy>=2.5.4",
     "pillow>=12.3.0",
-    "humanize>=4.15.0",
-    "translate-toolkit>=3.19.2",
+    "humanize>=4.16.0",
+    "translate-toolkit>=3.20.0",
 ]
 
 [tool.uv]

@@ -36,7 +36,7 @@ Northlight Tools provides the following utilities:
 Requirements
 ------------
 
-- Python 3.11+
+- Python 3.12+
 
 Installing
 ----------
