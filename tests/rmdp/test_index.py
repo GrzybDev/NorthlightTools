@@ -5,9 +5,14 @@ import pytest
 
 from northlighttools.binary import ByteOrder, packer
 from northlighttools.errors import FormatError
-from northlighttools.rmdp.formats import FORMATS, Game
-from northlighttools.rmdp.index import decode_index, encode_index
-from northlighttools.rmdp.model import Package, PackageFile
+from northlighttools.rmdp import (
+    FORMATS,
+    Game,
+    Package,
+    PackageFile,
+    decode_index,
+    encode_index,
+)
 
 
 def make_package(game: Game, paths: list[str], **changes: Any) -> Package:

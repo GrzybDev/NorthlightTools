@@ -4,7 +4,7 @@ import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from northlighttools.binfnt.font import BinaryFont
-from northlighttools.rmdp import Annotated
+from typing import Annotated
 
 app = typer.Typer(help="Tools for .binfnt files (Binary font files)")
 
