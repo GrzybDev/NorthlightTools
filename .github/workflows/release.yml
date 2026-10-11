@@ -18,8 +18,12 @@ on:
           - major
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   version:
     name: Bump Version
+    needs: checks
     runs-on: ubuntu-latest
     permissions:
       contents: write

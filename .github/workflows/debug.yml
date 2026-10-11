@@ -9,7 +9,11 @@ permissions:
   contents: read
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   build:
+    needs: checks
     uses: GrzybDev/actions/.github/workflows/python-app.yml@v1
     with:
       include-package: rich._unicode_data
