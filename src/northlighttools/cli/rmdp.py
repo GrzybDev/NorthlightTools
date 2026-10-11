@@ -24,6 +24,7 @@ from northlighttools.rmdp import (
     pack_directory,
     package_paths,
     read_package,
+    repack_directory,
 )
 
 app = typer.Typer(
@@ -133,18 +134,41 @@ def pack(
         ),
     ] = None,
     game: Annotated[
-        Game,
-        typer.Option("--game", "-g", help="Game whose package format to use"),
-    ] = Game.QUANTUM_BREAK,
+        Game | None,
+        typer.Option(
+            "--game",
+            "-g",
+            help="Game whose package format to use [default: quantum-break]",
+        ),
+    ] = None,
+    original: Annotated[
+        Path | None,
+        typer.Option(
+            "--original",
+            help="The package the directory was extracted from: unchanged files keep "
+            "their exact place, so an unchanged directory packs into the same package",
+            exists=True,
+            dir_okay=False,
+        ),
+    ] = None,
 ) -> None:
+    if game and original:
+        msg = "--original sets the package format; leave out --game"
+        raise ValueError(msg)
+    input_dir = input_dir.resolve()  # "." has no name to call the package after
     output_path = output_path or input_dir.parent / f"{input_dir.name}.rmdp"
     with progress_bar() as progress:
         task = progress.add_task("Packing", total=None)
-        package = pack_directory(
-            input_dir,
-            output_path,
-            FORMATS[game],
-            on_file=lambda _: progress.advance(task),
-        )
+
+        def advance(_: object) -> None:
+            progress.advance(task)
+
+        if original:
+            package = repack_directory(input_dir, output_path, original, advance)
+        else:
+            package_format = FORMATS[game or Game.QUANTUM_BREAK]
+            package = pack_directory(
+                input_dir, output_path, package_format, on_file=advance
+            )
     index_path, data_path = package_paths(output_path)
     done(f"Packed {len(package.files)} files into {index_path} and {data_path}")

@@ -3,6 +3,7 @@
 import os
 import zlib
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import BinaryIO
 
@@ -10,7 +11,7 @@ from northlighttools.binary import ByteOrder
 from northlighttools.errors import FormatError
 from northlighttools.fileio import atomic_writer
 from northlighttools.rmdp.formats import PackageFormat
-from northlighttools.rmdp.index import decode_index, encode_index
+from northlighttools.rmdp.index import decode_index, encode_index, patch_index
 from northlighttools.rmdp.model import (
     Package,
     PackageFile,
@@ -126,6 +127,84 @@ def pack_directory(
     return package
 
 
+def repack_directory(
+    source_dir: Path,
+    output_path: Path,
+    original_path: Path,
+    on_file: FileCallback | None = None,
+) -> Package:
+    """Pack source_dir in the layout of the package it was extracted from.
+
+    Unchanged files keep their place in the data, their timestamp and their
+    stored checksum, new files go last, and the original index is patched
+    rather than rebuilt while no entry is added or removed: repacking an
+    unchanged directory gives back the very same package.
+    """
+    original_index_path, original_data_path = package_paths(original_path)
+    original_index = original_index_path.read_bytes()
+    original = decode_index(original_index)
+    package_format = original.format
+    folders, sources = _collect(source_dir)
+    kept = sorted(
+        (file for file in original.files if file.path in sources),
+        key=lambda file: file.offset,
+    )
+    known = {file.path for file in original.files}
+    added = sorted((path for path in sources if path not in known), key=sort_key)
+    same_entries = len(kept) == len(original.files) and not added
+    same_entries &= set(folders) == set(original.folders)
+
+    index_path, data_path = package_paths(output_path)
+    files: dict[PackagePath, PackageFile] = {}
+    in_place = True
+    # The original closes first, so that the new package may replace it.
+    with (
+        atomic_writer(data_path) as data,
+        atomic_writer(index_path) as index,
+        original_data_path.open("rb") as original_data,
+    ):
+        layout: list[tuple[PackagePath, PackageFile | None]] = [
+            (file.path, file) for file in kept
+        ]
+        for package_path, previous in layout + [(path, None) for path in added]:
+            if previous is not None and data.tell() <= previous.offset:
+                data.write(bytes(previous.offset - data.tell()))
+            else:
+                in_place = False
+                _align(data, package_format.data_alignment)
+            file = _pack_file(data, package_path, sources[package_path], package_format)
+            if previous is not None:
+                file = replace(file, flags=previous.flags)
+                if _unchanged(file, previous, original_data):
+                    file = replace(
+                        file, checksum=previous.checksum, timestamp=previous.timestamp
+                    )
+            files[package_path] = file
+            if on_file:
+                on_file(file)
+        original_size = original_data_path.stat().st_size
+        if same_entries and in_place and data.tell() <= original_size:
+            data.write(bytes(original_size - data.tell()))
+        else:
+            _align(data, package_format.data_alignment)
+
+        ordered = [files[file.path] for file in original.files if file.path in files]
+        package = Package(
+            format=package_format,
+            byte_order=original.byte_order,
+            base_path=original.base_path,
+            folders=folders,
+            files=sorted(files.values(), key=lambda file: sort_key(file.path)),
+            extra_paths=original.extra_paths,
+            header_value=original.header_value,
+        )
+        if same_entries:
+            index.write(patch_index(original_index, ordered))
+        else:
+            index.write(encode_index(package))
+    return package
+
+
 def _collect(source_dir: Path) -> tuple[list[PackagePath], dict[PackagePath, Path]]:
     """Return the folders and files under source_dir by their package paths."""
     folders: list[PackagePath] = []
@@ -154,6 +233,20 @@ def _pack_file(
     if package_format.has_timestamps:
         timestamp = filetime_from_ns(path.stat().st_mtime_ns)
     return PackageFile(package_path, offset, size, checksum, timestamp)
+
+
+def _unchanged(file: PackageFile, previous: PackageFile, data: BinaryIO) -> bool:
+    if file.size != previous.size:
+        return False
+    if file.checksum == previous.checksum:
+        return True
+    # Alan Wake stores outdated checksums for some files, so compare the data.
+    data.seek(previous.offset)
+    checksum, remaining = 0, previous.size
+    while remaining and (chunk := data.read(min(remaining, _CHUNK_SIZE))):
+        checksum = zlib.crc32(chunk, checksum)
+        remaining -= len(chunk)
+    return checksum == file.checksum
 
 
 def _copy(path: Path, output: BinaryIO) -> tuple[int, int]:

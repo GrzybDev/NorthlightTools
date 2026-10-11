@@ -7,6 +7,7 @@ packages create entries in the order of their sorted paths, which this module
 reproduces.
 """
 
+import struct
 from dataclasses import dataclass
 from typing import cast
 
@@ -23,6 +24,8 @@ from northlighttools.rmdp.names import (
 
 _BYTE_ORDER_FLAGS = {0: ByteOrder.LITTLE, 1: ByteOrder.BIG}
 _BASE_PATH_SIZE = 128
+# Positions of the fields patch_index rewrites among those of a file record.
+_FILE_FLAGS, _FILE_OFFSET, _FILE_SIZE, _FILE_CHECKSUM, _FILE_TIMESTAMP = 3, 5, 6, 7, 8
 
 
 @dataclass(slots=True)
@@ -106,6 +109,52 @@ def decode_index(data: bytes) -> Package:
         extra_paths=extra_paths,
         header_value=header_value,
     )
+
+
+def patch_index(original: bytes, files: list[PackageFile]) -> bytes:
+    """Rewrite the file records of an index, keeping all its other bytes.
+
+    files are the index's own files, in its order, with their new flags, data
+    positions, sizes, checksums and timestamps. Every other byte stays, among
+    them those the games' packers left uninitialized.
+    """
+    package = decode_index(original)
+    if [file.path for file in files] != [file.path for file in package.files]:
+        msg = "The files to patch in are not those of the index"
+        raise ValueError(msg)
+    package_format, byte_order = package.format, package.byte_order
+    fields = [code for code in package_format.file_fields if code != "x"]
+    offsets = _field_offsets(package_format.file_fields)
+    header_size = 17 + _BASE_PATH_SIZE + (8 if package_format.has_header_value else 0)
+    folder_size = packer(byte_order, package_format.folder_fields).size
+    file_size = packer(byte_order, package_format.file_fields).size
+    first_file = header_size + (len(package.folders) + 1) * folder_size
+
+    patched = bytearray(original)
+    for number, file in enumerate(files):
+        values = {
+            _FILE_FLAGS: file.flags,
+            _FILE_OFFSET: file.offset,
+            _FILE_SIZE: file.size,
+            _FILE_CHECKSUM: _data_checksum(file.checksum, byte_order),
+        }
+        if package_format.has_timestamps:
+            values[_FILE_TIMESTAMP] = file.timestamp or 0
+        record = first_file + number * file_size
+        for field, value in values.items():
+            layout = packer(byte_order, fields[field])
+            layout.pack_into(patched, record + offsets[field], value)
+    return bytes(patched)
+
+
+def _field_offsets(fields: str) -> list[int]:
+    """Return where each field of a record starts, skipping padding."""
+    offsets, position = [], 0
+    for code in fields:
+        if code != "x":
+            offsets.append(position)
+        position += struct.calcsize(code)
+    return offsets
 
 
 def encode_index(package: Package) -> bytes:

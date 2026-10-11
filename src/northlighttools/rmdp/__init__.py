@@ -7,9 +7,10 @@ from northlighttools.rmdp.archive import (
     pack_directory,
     package_paths,
     read_package,
+    repack_directory,
 )
 from northlighttools.rmdp.formats import FORMATS, Game, PackageFormat
-from northlighttools.rmdp.index import decode_index, encode_index
+from northlighttools.rmdp.index import decode_index, encode_index, patch_index
 from northlighttools.rmdp.model import Package, PackageFile, filetime_to_datetime
 from northlighttools.rmdp.names import PackagePath, format_path
 
@@ -29,5 +30,7 @@ __all__ = [
     "format_path",
     "pack_directory",
     "package_paths",
+    "patch_index",
     "read_package",
+    "repack_directory",
 ]
