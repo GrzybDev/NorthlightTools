@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: GrzybDev/actions/.github/workflows/python-checks.yml@v1
+    with:
+      test-command: pytest
+      mypy: true
+      runners: '["ubuntu-latest", "windows-latest"]'
+
+  build:
+    needs: checks
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    uses: GrzybDev/actions/.github/workflows/python-app.yml@v1
+    with:
+      include-package: rich._unicode_data

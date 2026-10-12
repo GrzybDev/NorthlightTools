@@ -19,7 +19,13 @@ on:
 
 jobs:
   checks:
-    uses: ./.github/workflows/checks.yml
+    permissions:
+      contents: read
+    uses: GrzybDev/actions/.github/workflows/python-checks.yml@v1
+    with:
+      test-command: pytest
+      mypy: true
+      runners: '["ubuntu-latest", "windows-latest"]'
 
   version:
     name: Bump Version
