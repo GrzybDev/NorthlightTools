@@ -34,7 +34,7 @@ class TranslationFormat(StrEnum):
         return _CODECS[self].suffix
 
     @classmethod
-    def of_suffix(cls, suffix: str) -> "TranslationFormat":
+    def of_suffix(cls, suffix: str) -> TranslationFormat:
         """Return the format whose files have this extension, XLIFF 2.0 for others."""
         return next((f for f in cls if f.suffix == suffix.lower()), cls.XLIFF2)
 

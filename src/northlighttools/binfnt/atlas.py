@@ -108,7 +108,7 @@ class _Rectangle:
     """Left, bottom, right and top in texture pixels, down from the top."""
 
     @classmethod
-    def of(cls, glyph: Glyph, width: int, height: int) -> "_Rectangle | None":
+    def of(cls, glyph: Glyph, width: int, height: int) -> _Rectangle | None:
         if len(glyph.vertices) != 4 or glyph.indices != _QUAD_TRIANGLES:
             return None
         bottom_left, bottom_right, top_right, top_left = glyph.vertices

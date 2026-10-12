@@ -32,7 +32,7 @@ class Layout:
             raise ValueError(msg)
 
     @classmethod
-    def of(cls, text: str) -> "Layout":
+    def of(cls, text: str) -> Layout:
         """Split a text into its paragraphs and layout runs."""
         parts = _LAYOUT.split(text)
         matches = _LAYOUT.findall(text)
