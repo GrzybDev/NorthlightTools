@@ -26,7 +26,7 @@ def source(tmp_path: Path) -> Path:
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        timestamp = 1_700_000_000_123_456_700 + index
+        timestamp = 1_700_000_000_123_456_700 + index * 100  # whole FILETIME ticks
         os.utime(path, ns=(timestamp, timestamp))
     (root / "d%3A" / "data" / "unused").mkdir()
     return root
