@@ -3,8 +3,8 @@ from typing import Annotated
 
 import typer
 
-from northlighttools.cli.console import done, reports_errors
-from northlighttools.fileio import write_atomically
+from northlighttools.cli.console import done, reporting_originals, reports_errors
+from northlighttools.fileio import creating_files, write_atomically
 from northlighttools.string_table import (
     TranslationFormat,
     decode_string_table,
@@ -58,7 +58,8 @@ def export_command(
     output_path = output_path or input_path.with_suffix(translation_format.suffix)
     entries = decode_string_table(input_path.read_bytes())
     document = export_translation(entries, translation_format, input_path.name, source_language)
-    write_atomically(output_path, document)
+    with creating_files([output_path]):
+        write_atomically(output_path, document)
     done(f"Exported {len(entries)} strings to {output_path} as {translation_format}")
 
 
@@ -84,5 +85,6 @@ def import_command(
     """Build a string table from a translated XLIFF 2.0, XLIFF 1.2 or PO file; untranslated strings keep their original text."""  # noqa: E501 - Typer keeps a docstring's line breaks in its list of commands
     output_path = output_path or input_path.with_suffix(".bin")
     translation_format, entries = import_translation(input_path.read_bytes())
-    write_atomically(output_path, encode_string_table(entries))
+    with reporting_originals(output_path):
+        write_atomically(output_path, encode_string_table(entries))
     done(f"Imported {len(entries)} strings from {translation_format} to {output_path}")

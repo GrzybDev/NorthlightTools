@@ -11,7 +11,7 @@ from northlighttools.binfnt import (
     decompile_font,
     encode_font,
 )
-from northlighttools.cli.console import console, done, reports_errors
+from northlighttools.cli.console import console, done, reporting_originals, reports_errors
 from northlighttools.fileio import write_atomically
 
 app = typer.Typer(
@@ -86,5 +86,6 @@ def compile_command(
 ) -> None:
     """Build a font from a decompiled JSON document."""
     output_path = output_path or json_path.with_suffix(".binfnt")
-    write_atomically(output_path, encode_font(compile_font(json_path)))
+    with reporting_originals(output_path):
+        write_atomically(output_path, encode_font(compile_font(json_path)))
     done(f"Compiled {output_path}")

@@ -1,5 +1,6 @@
 """Writing fonts as msdf-atlas-gen JSON documents with their texture beside them."""
 
+import io
 import json
 import math
 import statistics
@@ -33,7 +34,7 @@ from northlighttools.binfnt.texture import (
     from_image,
     to_image,
 )
-from northlighttools.fileio import write_atomically
+from northlighttools.fileio import creating_files, write_atomically
 
 _KERNED_VERSIONS = (FontVersion.V4, FontVersion.V7)
 
@@ -74,6 +75,8 @@ def _atlas_size(font: BinaryFont, width: int) -> float:
 def decompile_font(font: BinaryFont, json_path: Path, *, separate_glyphs: bool = False) -> None:
     """Write a font as a JSON document, with its texture beside it.
 
+    Nothing is written when any of the files exists already.
+
     Args:
         font: The font to write.
         json_path: Where to write the document.
@@ -93,7 +96,6 @@ def decompile_font(font: BinaryFont, json_path: Path, *, separate_glyphs: bool =
     ]
     pixels = _exact_pixels(font, texture)
     output_dir, stem = json_path.parent, json_path.stem
-    output_dir.mkdir(parents=True, exist_ok=True)
     northlight: dict[str, Any] = {
         "version": int(font.version),
         "format": texture.pixel_format.value,
@@ -117,6 +119,7 @@ def decompile_font(font: BinaryFont, json_path: Path, *, separate_glyphs: bool =
         ]
     document["northlight"] = northlight
 
+    files: dict[Path, bytes] = {}
     if separate_glyphs:
         if pixels is None:
             msg = "This font's texture can only be kept as a DDS file"
@@ -124,7 +127,6 @@ def decompile_font(font: BinaryFont, json_path: Path, *, separate_glyphs: bool =
         background = _background(pixels)
         cuts = _cut_glyphs(font, texture, pixels, rectangles, background)
         folder = output_dir / f"{stem}_glyphs"
-        folder.mkdir(parents=True, exist_ok=True)
         northlight["glyphs"] = folder.name
         northlight["background"] = background
         for index, region in cuts:
@@ -132,14 +134,17 @@ def decompile_font(font: BinaryFont, json_path: Path, *, separate_glyphs: bool =
             name = f"U+{code:04X}.png" if code is not None else "fallback.png"
             glyphs[index]["image"] = name
             image = Image.fromarray(region) if packed else to_image(region, texture.pixel_format)
-            image.save(folder / name)
+            files[folder / name] = _png(image)
     elif pixels is not None:
         northlight["texture"] = f"{stem}.png"
-        to_image(pixels, texture.pixel_format).save(output_dir / f"{stem}.png")
+        files[output_dir / f"{stem}.png"] = _png(to_image(pixels, texture.pixel_format))
     else:
         northlight["texture"] = f"{stem}.dds"
-        write_atomically(output_dir / f"{stem}.dds", font.texture)
-    write_atomically(json_path, _dump(document))
+        files[output_dir / f"{stem}.dds"] = font.texture
+    files[json_path] = _dump(document)
+    with creating_files(files):
+        for path, data in files.items():
+            write_atomically(path, data)
 
 
 def _atlas_entry(font: BinaryFont, texture: DdsTexture, pixels: Pixels | None) -> dict[str, Any]:
@@ -257,6 +262,12 @@ def _cut_glyphs(
         msg = "Cutting this font into glyph images would lose texture data"
         raise ValueError(msg)
     return cuts
+
+
+def _png(image: Image.Image) -> bytes:
+    buffer = io.BytesIO()
+    image.save(buffer, "PNG")
+    return buffer.getvalue()
 
 
 def _dump(document: dict[str, Any]) -> bytes:

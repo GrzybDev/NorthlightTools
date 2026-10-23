@@ -92,7 +92,7 @@ def test_data_not_matching_its_checksum_is_reported(source: Path, tmp_path: Path
     assert extracted.read_bytes() == bytes(data[body.offset : body.offset + body.size])
 
 
-def test_data_cut_short_is_an_error(source: Path, tmp_path: Path) -> None:
+def test_data_cut_short_fails_extraction_and_leaves_no_files(source: Path, tmp_path: Path) -> None:
     package = pack_directory(source, tmp_path / "out.rmdp", FORMATS[Game.CONTROL])
     last = max(package.files, key=lambda file: file.offset)
     with (tmp_path / "out.rmdp").open("r+b") as data:
@@ -100,6 +100,8 @@ def test_data_cut_short_is_an_error(source: Path, tmp_path: Path) -> None:
 
     with pytest.raises(FormatError, match="cut short"):
         extract_package(package, tmp_path / "out.rmdp", tmp_path / "extracted")
+
+    assert not [path for path in (tmp_path / "extracted").rglob("*") if path.is_file()]
 
 
 def test_failed_packing_leaves_no_package(source: Path, tmp_path: Path) -> None:

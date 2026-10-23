@@ -11,6 +11,7 @@ from northlighttools.cli.console import (
     console,
     done,
     progress_bar,
+    reporting_originals,
     reports_errors,
     warn,
 )
@@ -159,7 +160,8 @@ def pack(
         raise ValueError(msg)
     input_dir = input_dir.resolve()  # "." has no name to call the package after
     output_path = output_path or input_dir.parent / f"{input_dir.name}.rmdp"
-    with progress_bar() as progress:
+    index_path, data_path = package_paths(output_path)
+    with reporting_originals(index_path, data_path), progress_bar() as progress:
         task = progress.add_task("Packing", total=None)
 
         def advance(_: object) -> None:
@@ -170,5 +172,4 @@ def pack(
         else:
             package_format = FORMATS[game or Game.QUANTUM_BREAK]
             package = pack_directory(input_dir, output_path, package_format, on_file=advance)
-    index_path, data_path = package_paths(output_path)
     done(f"Packed {len(package.files)} files into {index_path} and {data_path}")

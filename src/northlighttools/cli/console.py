@@ -1,7 +1,9 @@
 """Output and error reporting shared by the commands."""
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -15,6 +17,8 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+
+from northlighttools.fileio import original_to_keep
 
 console = Console()
 error_console = Console(stderr=True)
@@ -61,6 +65,19 @@ def done(message: str) -> None:
         message: What the command did.
     """
     console.print(f"[green]{escape(message)}[/]")
+
+
+@contextmanager
+def reporting_originals(*paths: Path) -> Iterator[None]:
+    """Print where the files that the block replaces are kept, once it succeeds.
+
+    Args:
+        paths: The files the block writes.
+    """
+    originals = [original for path in paths if (original := original_to_keep(path))]
+    yield
+    for original in originals:
+        console.print(f"Kept the original as {escape(str(original))}")
 
 
 def warn(message: str) -> None:

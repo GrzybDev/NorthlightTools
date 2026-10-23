@@ -9,7 +9,7 @@ from typing import BinaryIO
 
 from northlighttools.binary import ByteOrder
 from northlighttools.errors import FormatError
-from northlighttools.fileio import atomic_writer
+from northlighttools.fileio import ORIGINAL_SUFFIX, atomic_writer, creating_files
 from northlighttools.rmdp.formats import PackageFormat
 from northlighttools.rmdp.index import decode_index, encode_index, patch_index
 from northlighttools.rmdp.model import (
@@ -35,8 +35,14 @@ def package_paths(path: Path) -> tuple[Path, Path]:
     """Return the index (.bin) and data (.rmdp) paths of a package.
 
     Args:
-        path: The package's .bin or .rmdp file.
+        path: The package's .bin or .rmdp file, or the .orig file of a kept original.
     """
+    if path.suffix == ORIGINAL_SUFFIX:
+        index_path, data_path = package_paths(path.with_suffix(""))
+        return (
+            index_path.with_name(index_path.name + ORIGINAL_SUFFIX),
+            data_path.with_name(data_path.name + ORIGINAL_SUFFIX),
+        )
     return path.with_suffix(".bin"), path.with_suffix(".rmdp")
 
 
@@ -68,6 +74,9 @@ def extract_package(
 ) -> list[PackageFile]:
     """Write every folder and file of a package under output_dir.
 
+    Nothing is written when any of the files exists already, and the files written are
+    removed again when extraction fails.
+
     Args:
         package: Index of the package.
         data_path: The package's data (.rmdp) file.
@@ -77,12 +86,13 @@ def extract_package(
     Returns:
         The files whose data does not match their stored CRC-32.
     """
-    for folder in package.folders:
-        filesystem_path(output_dir, folder).mkdir(parents=True, exist_ok=True)
+    targets = {file.path: filesystem_path(output_dir, file.path) for file in package.files}
     mismatched = []
-    with data_path.open("rb") as source:
+    with creating_files(targets.values()), data_path.open("rb") as source:
+        for folder in package.folders:
+            filesystem_path(output_dir, folder).mkdir(parents=True, exist_ok=True)
         for file in sorted(package.files, key=lambda file: file.offset):
-            if not extract_file(source, file, filesystem_path(output_dir, file.path)):
+            if not extract_file(source, file, targets[file.path]):
                 mismatched.append(file)
             if on_file:
                 on_file(file)
@@ -134,9 +144,12 @@ def pack_directory(
 ) -> Package:
     """Pack every folder and file under source_dir into a package at output_path.
 
+    The .orig files that replacing files keeps are left out.
+
     Args:
         source_dir: Directory to pack.
-        output_path: The .bin or .rmdp file to create, with its pair.
+        output_path: The .bin or .rmdp file to create, with its pair; the first package
+            replaced there is kept as .orig files.
         package_format: Index layout to write.
         byte_order: Byte order of the index, by default the one the format's game uses.
         on_file: Called after each file is packed.
@@ -147,7 +160,9 @@ def pack_directory(
     folders, sources = _collect(source_dir)
     index_path, data_path = package_paths(output_path)
     files = []
-    with atomic_writer(data_path) as data, atomic_writer(index_path) as index:
+    # The data replaces its file first: when a running game holds that file open, the
+    # old pair stays whole.
+    with atomic_writer(index_path) as index, atomic_writer(data_path) as data:
         for package_path in sorted(sources, key=sort_key):
             _align(data, package_format.data_alignment)
             file = _pack_file(data, package_path, sources[package_path], package_format)
@@ -177,11 +192,13 @@ def repack_directory(
     Unchanged files keep their place in the data, their timestamp and their
     stored checksum, new files go last, and the original index is patched
     rather than rebuilt while no entry is added or removed: repacking an
-    unchanged directory gives back the very same package.
+    unchanged directory gives back the very same package. The .orig files that
+    replacing files keeps are left out.
 
     Args:
         source_dir: Directory to pack.
-        output_path: The .bin or .rmdp file to create, with its pair.
+        output_path: The .bin or .rmdp file to create, with its pair, which may be the
+            original package; the first package replaced there is kept as .orig files.
         original_path: The original package's .bin or .rmdp file.
         on_file: Called after each file is packed.
 
@@ -205,10 +222,11 @@ def repack_directory(
     index_path, data_path = package_paths(output_path)
     files: dict[PackagePath, PackageFile] = {}
     in_place = True
-    # The original closes first, so that the new package may replace it.
+    # The original closes first, so that the new package may replace it, and the data
+    # replaces its file before the index, as in pack_directory.
     with (
-        atomic_writer(data_path) as data,
         atomic_writer(index_path) as index,
+        atomic_writer(data_path) as data,
         original_data_path.open("rb") as original_data,
     ):
         layout: list[tuple[PackagePath, PackageFile | None]] = [(file.path, file) for file in kept]
@@ -258,6 +276,8 @@ def _collect(source_dir: Path) -> tuple[list[PackagePath], dict[PackagePath, Pat
         package_path = tuple(from_filesystem_name(part) for part in parts)
         if path.is_dir():
             folders.append(package_path)
+        elif path.suffix == ORIGINAL_SUFFIX:
+            continue
         elif sources.setdefault(package_path, path) != path:
             msg = f"{format_path(package_path)} is listed twice"
             raise ValueError(msg)
