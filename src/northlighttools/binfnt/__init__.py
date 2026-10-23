@@ -1,8 +1,9 @@
 """Binary fonts (.binfnt): glyph meshes, kerning and a texture atlas."""
 
-from northlighttools.binfnt.atlas import compile_font, decompile_font
 from northlighttools.binfnt.codec import decode_font, encode_font
+from northlighttools.binfnt.compiler import compile_font
 from northlighttools.binfnt.dds import PixelFormat, decode_dds
+from northlighttools.binfnt.decompiler import decompile_font
 from northlighttools.binfnt.model import (
     BinaryFont,
     FontVersion,
