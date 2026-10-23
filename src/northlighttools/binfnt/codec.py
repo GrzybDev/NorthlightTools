@@ -27,6 +27,11 @@ _SIZED_TEXTURE = {FontVersion.V3, FontVersion.V4}
 
 
 def decode_font(data: bytes) -> BinaryFont:
+    """Parse a binary font.
+
+    Args:
+        data: Contents of a .binfnt file.
+    """
     reader = BinaryReader(data)
     raw_version = reader.u32()
     try:
@@ -64,6 +69,11 @@ def decode_font(data: bytes) -> BinaryFont:
 
 
 def encode_font(font: BinaryFont) -> bytes:
+    """Build the .binfnt file of a font.
+
+    Args:
+        font: The font to encode.
+    """
     version = font.version
     if version not in _KERNING_FIELDS and font.kerning:
         msg = f"Fonts of version {version} have no kerning"

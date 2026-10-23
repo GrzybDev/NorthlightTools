@@ -1,6 +1,6 @@
-"""The paragraphs of a text and the layout around them.
+r"""The paragraphs of a text and the layout around them.
 
-Texts are laid out with line breaks and \\n escape sequences. A layout run is a
+Texts are laid out with line breaks and \n escape sequences. A layout run is a
 stretch of them together with the spaces and tabs next to them; translation
 formats offer the paragraphs between layout runs for translation and carry the
 layout runs unchanged, so a text comes back exactly as it was.
@@ -33,7 +33,11 @@ class Layout:
 
     @classmethod
     def of(cls, text: str) -> Layout:
-        """Split a text into its paragraphs and layout runs."""
+        """Split a text into its paragraphs and layout runs.
+
+        Args:
+            text: The text to split.
+        """
         parts = _LAYOUT.split(text)
         matches = _LAYOUT.findall(text)
         paragraphs = tuple(part for part in parts if part)
@@ -48,7 +52,11 @@ class Layout:
         return cls(paragraphs, (before, *after))
 
     def join(self, paragraphs: Sequence[str]) -> str:
-        """Lay out these paragraphs, the text's own or translations of them."""
+        """Return the text with these paragraphs between its layout runs.
+
+        Args:
+            paragraphs: The text's own paragraphs or translations of them, in order.
+        """
         if len(paragraphs) != len(self.paragraphs):
             msg = f"Expected {len(self.paragraphs)} paragraphs, got {len(paragraphs)}"
             raise ValueError(msg)

@@ -58,7 +58,13 @@ def export_xliff2(
     filename: str = "string_table.bin",
     source_language: str = "en",
 ) -> bytes:
-    """Return an XLIFF 2.0 document with the entries' texts as untranslated sources."""
+    """Return an XLIFF 2.0 document with the entries' texts as untranslated sources.
+
+    Args:
+        entries: The string table's entries.
+        filename: Name of the string table, recorded in the document.
+        source_language: Language of the texts, as a BCP 47 tag.
+    """
     store = Xliff2File()
     store.setsourcelanguage(source_language)
     file = store.document.getroot()[0]
@@ -78,7 +84,11 @@ def export_xliff2(
 
 
 def import_xliff2(data: bytes) -> list[StringEntry]:
-    """Build string table entries from an XLIFF 2.0 document, in its order."""
+    """Build string table entries from an XLIFF 2.0 document, in its order.
+
+    Args:
+        data: Contents of the XLIFF 2.0 document.
+    """
     document = _parse(data, XLIFF2_ROOT, "XLIFF 2.0")
     parts = {_xliff2("segment"), _xliff2("ignorable")}
     return [
@@ -95,7 +105,13 @@ def export_xliff1(
     filename: str = "string_table.bin",
     source_language: str = "en",
 ) -> bytes:
-    """Return an XLIFF 1.2 document with the entries' texts as untranslated sources."""
+    """Return an XLIFF 1.2 document with the entries' texts as untranslated sources.
+
+    Args:
+        entries: The string table's entries.
+        filename: Name of the string table, recorded in the document.
+        source_language: Language of the texts, as a BCP 47 tag.
+    """
     store = Xliff1File.parsestring(_XLIFF12_SKELETON)
     store.setsourcelanguage(source_language)
     file = store.document.getroot()[0]
@@ -116,7 +132,11 @@ def export_xliff1(
 
 
 def import_xliff1(data: bytes) -> list[StringEntry]:
-    """Build string table entries from an XLIFF 1.2 document, in its order."""
+    """Build string table entries from an XLIFF 1.2 document, in its order.
+
+    Args:
+        data: Contents of the XLIFF 1.2 document.
+    """
     document = _parse(data, XLIFF12_ROOT, "XLIFF 1.2")
     entries = []
     for body in document.iter(_xliff1("body")):
@@ -151,9 +171,11 @@ def _xml_id(name: str) -> str:
 
 
 def _parts(layout: Layout) -> Iterator[tuple[bool, int, str]]:
-    """Yield the paragraphs, numbered from 1, and the non-empty layout runs, numbered
-    from 0 before the first paragraph, each run taking the number of the paragraph
-    it follows."""
+    """Yield the paragraphs and the non-empty layout runs with their numbers.
+
+    Paragraphs are numbered from 1; a run takes the number of the paragraph it
+    follows, 0 before the first paragraph.
+    """
     if layout.runs[0]:
         yield False, 0, layout.runs[0]
     for number, (paragraph, run) in enumerate(

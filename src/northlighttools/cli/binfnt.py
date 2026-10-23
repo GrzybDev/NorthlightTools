@@ -22,9 +22,10 @@ app = typer.Typer(
 FontArgument = Annotated[Path, typer.Argument(help="The .binfnt file", exists=True, dir_okay=False)]
 
 
-@app.command(help="Show what a font holds.")
+@app.command()
 @reports_errors
 def info(font_path: FontArgument) -> None:
+    """Show what a font holds."""
     font = decode_font(font_path.read_bytes())
     texture = decode_dds(font.texture)
     table = Table(show_header=False, box=None)
@@ -40,7 +41,7 @@ def info(font_path: FontArgument) -> None:
     console.print(table)
 
 
-@app.command(help="Turn a font into an msdf-atlas-gen JSON document and its texture.")
+@app.command()
 @reports_errors
 def decompile(
     font_path: FontArgument,
@@ -60,6 +61,7 @@ def decompile(
         ),
     ] = False,
 ) -> None:
+    """Turn a font into an msdf-atlas-gen JSON document and its texture."""
     output_dir = output_dir or font_path.with_suffix("")
     json_path = output_dir / f"{font_path.stem}.json"
     font = decode_font(font_path.read_bytes())
@@ -67,7 +69,7 @@ def decompile(
     done(f"Decompiled {font_path.name} to {json_path}")
 
 
-@app.command(name="compile", help="Build a font from a decompiled JSON document.")
+@app.command(name="compile")
 @reports_errors
 def compile_command(
     json_path: Annotated[
@@ -82,6 +84,7 @@ def compile_command(
         ),
     ] = None,
 ) -> None:
+    """Build a font from a decompiled JSON document."""
     output_path = output_path or json_path.with_suffix(".binfnt")
     write_atomically(output_path, encode_font(compile_font(json_path)))
     done(f"Compiled {output_path}")

@@ -52,7 +52,11 @@ class _File:
 
 
 def decode_index(data: bytes) -> Package:
-    """Parse a package index, checking its names and the links of its tree."""
+    """Parse a package index, checking its names and the links of its tree.
+
+    Args:
+        data: Contents of the index (.bin) file.
+    """
     reader = BinaryReader(data)
     flag = reader.u8()
     if flag not in _BYTE_ORDER_FLAGS:
@@ -114,9 +118,12 @@ def decode_index(data: bytes) -> Package:
 def patch_index(original: bytes, files: list[PackageFile]) -> bytes:
     """Rewrite the file records of an index, keeping all its other bytes.
 
-    files are the index's own files, in its order, with their new flags, data
-    positions, sizes, checksums and timestamps. Every other byte stays, among
-    them those the games' packers left uninitialized.
+    The bytes kept include those the games' packers left uninitialized.
+
+    Args:
+        original: Contents of the index to patch.
+        files: The index's own files, in its order, with their new flags, data positions,
+            sizes, checksums and timestamps.
     """
     package = decode_index(original)
     if [file.path for file in files] != [file.path for file in package.files]:
@@ -158,7 +165,11 @@ def _field_offsets(fields: str) -> list[int]:
 
 
 def encode_index(package: Package) -> bytes:
-    """Build the index of a package, ordering its entries as the games do."""
+    """Build the index of a package, ordering its entries as the games do.
+
+    Args:
+        package: The package whose index to build.
+    """
     package_format = package.format
     tree = _TreeBuilder(package_format.null_link)
     entries: list[tuple[bytes, PackagePath | PackageFile]] = [

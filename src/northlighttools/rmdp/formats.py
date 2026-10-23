@@ -51,30 +51,40 @@ class PackageFormat:
 
     @property
     def has_timestamps(self) -> bool:
+        """Whether file entries store their last write time."""
         return self.version >= 7
 
     @property
     def has_header_value(self) -> bool:
+        """Whether the index header holds a 64-bit value of unknown meaning."""
         return self.version >= 7
 
     @property
     def has_closing_entry(self) -> bool:
+        """Whether an empty entry closes the folder and file tables."""
         return self.version >= 7
 
     @property
     def null_link(self) -> int:
+        """The link value that points to no entry."""
         return (1 << (8 * struct.calcsize(self.link))) - 1
 
     @cached_property
     def folder_fields(self) -> str:
-        """Checksum, next sibling, parent, unknown, name, first child and first file."""
+        """Struct format of a folder entry.
+
+        Its fields are checksum, next sibling, parent, unknown, name, first child and first file.
+        """
         fields = f"I{self.link}{self.link}I{self.link}{self.link}{self.link}"
         return _naturally_aligned(fields) if self.aligned else fields
 
     @cached_property
     def file_fields(self) -> str:
-        """Checksum, next sibling, parent, flags, name, offset, size, data checksum and,
-        in formats that have one, timestamp."""
+        """Struct format of a file entry.
+
+        Its fields are checksum, next sibling, parent, flags, name, offset, size, data checksum
+        and, in formats that have one, timestamp.
+        """
         fields = f"I{self.link}{self.link}I{self.link}QQI"
         if self.has_timestamps:
             fields += "Q"

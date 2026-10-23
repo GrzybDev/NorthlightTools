@@ -17,7 +17,12 @@ _NOT_CARRIED = re.compile(
 
 
 def checked(entries: Iterable[StringEntry], document: str) -> list[StringEntry]:
-    """Return the entries, refusing keys and texts the document could not carry."""
+    """Return the entries, refusing keys and texts the document could not carry.
+
+    Args:
+        entries: The entries to check.
+        document: Name of the document format, for the error message.
+    """
     entries = list(entries)
     for entry in entries:
         for what, text in (("key", entry.key), ("text", entry.value)):

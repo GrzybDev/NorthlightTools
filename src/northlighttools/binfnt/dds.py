@@ -27,6 +27,7 @@ class PixelFormat(StrEnum):
 
     @property
     def compressed(self) -> bool:
+        """Whether the format stores pixels in compressed 4x4 blocks."""
         return self is PixelFormat.DXT5
 
 
@@ -43,13 +44,26 @@ _BYTES_PER_PIXEL = {
 
 
 def level_size(pixel_format: PixelFormat, width: int, height: int) -> int:
-    """Return the byte size of an image of the given size."""
+    """Return the byte size of an image of the given size.
+
+    Args:
+        pixel_format: Pixel format of the image.
+        width: Width in pixels.
+        height: Height in pixels.
+    """
     if pixel_format.compressed:
         return max(1, (width + 3) // 4) * max(1, (height + 3) // 4) * 16
     return width * height * _BYTES_PER_PIXEL[pixel_format]
 
 
 def level_dimensions(width: int, height: int, level: int) -> tuple[int, int]:
+    """Return the width and height of a mipmap level.
+
+    Args:
+        width: Width of the full-size image.
+        height: Height of the full-size image.
+        level: Mipmap level, 0 for the full-size image.
+    """
     return max(1, width >> level), max(1, height >> level)
 
 
@@ -63,6 +77,11 @@ class DdsTexture:
 
 
 def decode_dds(data: bytes) -> DdsTexture:
+    """Parse a DDS texture in one of the pixel formats the games' fonts use.
+
+    Args:
+        data: Contents of a DDS file.
+    """
     reader = BinaryReader(data)
     if reader.read(4) != _MAGIC or reader.u32() != _HEADER_SIZE:
         msg = "Not a DDS texture"
@@ -100,6 +119,10 @@ def encode_dds(texture: DdsTexture, legacy_header: bool) -> bytes:
 
     Version 3 fonts carry the header D3DX writes; later ones the header of
     DirectXTex, which also fills the pitch and the depth.
+
+    Args:
+        texture: The texture to write.
+        legacy_header: Whether to write the D3DX header of version 3 fonts.
     """
     pixel_format = texture.pixel_format
     count = len(texture.levels)

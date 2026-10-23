@@ -32,18 +32,31 @@ FileCallback = Callable[[PackageFile], None]
 
 
 def package_paths(path: Path) -> tuple[Path, Path]:
-    """Return the index (.bin) and data (.rmdp) paths of the package at path."""
+    """Return the index (.bin) and data (.rmdp) paths of a package.
+
+    Args:
+        path: The package's .bin or .rmdp file.
+    """
     return path.with_suffix(".bin"), path.with_suffix(".rmdp")
 
 
 def read_package(path: Path) -> Package:
-    """Read the index of the package at path (its .bin or .rmdp file)."""
+    """Read the index of a package.
+
+    Args:
+        path: The package's .bin or .rmdp file.
+    """
     index_path, _ = package_paths(path)
     return decode_index(index_path.read_bytes())
 
 
 def filesystem_path(root: Path, path: PackagePath) -> Path:
-    """Return where a package entry is extracted under root."""
+    """Return where a package entry is extracted under root.
+
+    Args:
+        root: Directory the package is extracted to.
+        path: Path of the entry in the package.
+    """
     return root.joinpath(*map(to_filesystem_name, path))
 
 
@@ -55,7 +68,14 @@ def extract_package(
 ) -> list[PackageFile]:
     """Write every folder and file of a package under output_dir.
 
-    Return the files whose data does not match their stored CRC-32.
+    Args:
+        package: Index of the package.
+        data_path: The package's data (.rmdp) file.
+        output_dir: Directory to extract to.
+        on_file: Called after each file is written.
+
+    Returns:
+        The files whose data does not match their stored CRC-32.
     """
     for folder in package.folders:
         filesystem_path(output_dir, folder).mkdir(parents=True, exist_ok=True)
@@ -72,8 +92,16 @@ def extract_package(
 def extract_file(source: BinaryIO, file: PackageFile, target: Path) -> bool:
     """Copy one file out of a package's data.
 
-    Return whether its data matches the stored CRC-32. Alan Wake's own packages
-    hold some files that do not, so a mismatch alone does not stop extraction.
+    Alan Wake's own packages hold some files that do not match their stored CRC-32,
+    so a mismatch alone does not stop extraction.
+
+    Args:
+        source: The package's data, open for reading.
+        file: The file to copy.
+        target: Where to write the file.
+
+    Returns:
+        Whether the file's data matches its stored CRC-32.
     """
     target.parent.mkdir(parents=True, exist_ok=True)
     source.seek(file.offset)
@@ -104,7 +132,18 @@ def pack_directory(
     byte_order: ByteOrder | None = None,
     on_file: FileCallback | None = None,
 ) -> Package:
-    """Pack every folder and file under source_dir into a package at output_path."""
+    """Pack every folder and file under source_dir into a package at output_path.
+
+    Args:
+        source_dir: Directory to pack.
+        output_path: The .bin or .rmdp file to create, with its pair.
+        package_format: Index layout to write.
+        byte_order: Byte order of the index, by default the one the format's game uses.
+        on_file: Called after each file is packed.
+
+    Returns:
+        The index of the new package.
+    """
     folders, sources = _collect(source_dir)
     index_path, data_path = package_paths(output_path)
     files = []
@@ -139,6 +178,15 @@ def repack_directory(
     stored checksum, new files go last, and the original index is patched
     rather than rebuilt while no entry is added or removed: repacking an
     unchanged directory gives back the very same package.
+
+    Args:
+        source_dir: Directory to pack.
+        output_path: The .bin or .rmdp file to create, with its pair.
+        original_path: The original package's .bin or .rmdp file.
+        on_file: Called after each file is packed.
+
+    Returns:
+        The index of the new package.
     """
     original_index_path, original_data_path = package_paths(original_path)
     original_index = original_index_path.read_bytes()

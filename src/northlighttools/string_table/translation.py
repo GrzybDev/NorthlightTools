@@ -35,7 +35,11 @@ class TranslationFormat(StrEnum):
 
     @classmethod
     def of_suffix(cls, suffix: str) -> TranslationFormat:
-        """Return the format whose files have this extension, XLIFF 2.0 for others."""
+        """Return the format whose files have this extension, XLIFF 2.0 for others.
+
+        Args:
+            suffix: A file extension with its dot, in any letter case.
+        """
         return next((f for f in cls if f.suffix == suffix.lower()), cls.XLIFF2)
 
 
@@ -67,18 +71,36 @@ def export_translation(
     filename: str = "string_table.bin",
     source_language: str = "en",
 ) -> bytes:
-    """Return a document with the entries' texts, in source_language, untranslated."""
+    """Return a translation document with the entries' texts, untranslated.
+
+    Args:
+        entries: The string table's entries.
+        translation_format: Format of the document.
+        filename: Name of the string table, recorded in the document.
+        source_language: Language of the texts, as a BCP 47 tag (XLIFF only).
+    """
     return _CODECS[translation_format].export(entries, filename, source_language)
 
 
 def import_translation(data: bytes) -> tuple[TranslationFormat, list[StringEntry]]:
-    """Build string table entries from a document of any of the formats."""
+    """Build string table entries from a document of any of the formats.
+
+    Args:
+        data: Contents of an XLIFF 2.0, XLIFF 1.2 or PO document.
+
+    Returns:
+        The document's format and the entries, in its order.
+    """
     translation_format = detect_format(data)
     return translation_format, _CODECS[translation_format].import_(data)
 
 
 def detect_format(data: bytes) -> TranslationFormat:
-    """Tell an XLIFF document's version by its root element; anything else is PO."""
+    """Tell an XLIFF document's version by its root element; anything else is PO.
+
+    Args:
+        data: Contents of a translation document.
+    """
     if not _is_xml(data):
         return TranslationFormat.PO
     try:

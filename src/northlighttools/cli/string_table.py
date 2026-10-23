@@ -19,10 +19,7 @@ app = typer.Typer(
 )
 
 
-@app.command(
-    name="export",
-    help="Export a string table for translation: XLIFF 2.0, XLIFF 1.2 or Gettext PO.",
-)
+@app.command(name="export")
 @reports_errors
 def export_command(
     input_path: Annotated[
@@ -55,6 +52,7 @@ def export_command(
         ),
     ] = "en",
 ) -> None:
+    """Export a string table for translation: XLIFF 2.0, XLIFF 1.2 or Gettext PO."""
     if translation_format is None:
         translation_format = TranslationFormat.of_suffix(output_path.suffix if output_path else "")
     output_path = output_path or input_path.with_suffix(translation_format.suffix)
@@ -64,11 +62,7 @@ def export_command(
     done(f"Exported {len(entries)} strings to {output_path} as {translation_format}")
 
 
-@app.command(
-    name="import",
-    help="Build a string table from a translated XLIFF 2.0, XLIFF 1.2 or PO file; "
-    "untranslated strings keep their original text.",
-)
+@app.command(name="import")
 @reports_errors
 def import_command(
     input_path: Annotated[
@@ -87,6 +81,7 @@ def import_command(
         ),
     ] = None,
 ) -> None:
+    """Build a string table from a translated XLIFF 2.0, XLIFF 1.2 or PO file; untranslated strings keep their original text."""  # noqa: E501 - Typer keeps a docstring's line breaks in its list of commands
     output_path = output_path or input_path.with_suffix(".bin")
     translation_format, entries = import_translation(input_path.read_bytes())
     write_atomically(output_path, encode_string_table(entries))

@@ -10,17 +10,29 @@ _FILETIME_ORIGIN = datetime(1601, 1, 1, tzinfo=UTC)
 
 
 def filetime_from_ns(nanoseconds: int) -> int:
-    """Convert nanoseconds since the Unix epoch to a Windows FILETIME."""
+    """Convert nanoseconds since the Unix epoch to a Windows FILETIME.
+
+    Args:
+        nanoseconds: Time since the Unix epoch, in nanoseconds.
+    """
     return nanoseconds // 100 + _FILETIME_UNIX_EPOCH
 
 
 def filetime_to_ns(filetime: int) -> int:
-    """Convert a Windows FILETIME to nanoseconds since the Unix epoch."""
+    """Convert a Windows FILETIME to nanoseconds since the Unix epoch.
+
+    Args:
+        filetime: Time since 1601 in 100-nanosecond units.
+    """
     return (filetime - _FILETIME_UNIX_EPOCH) * 100
 
 
 def filetime_to_datetime(filetime: int) -> datetime | None:
-    """Return the moment a Windows FILETIME stands for, or None past the year 9999."""
+    """Return the moment a Windows FILETIME stands for, or None past the year 9999.
+
+    Args:
+        filetime: Time since 1601 in 100-nanosecond units.
+    """
     try:
         return _FILETIME_ORIGIN + timedelta(microseconds=filetime // 10)
     except OverflowError:
@@ -43,6 +55,7 @@ class PackageFile:
 
     @property
     def name(self) -> str:
+        """The file's own name, the last part of its path."""
         return self.path[-1]
 
 
@@ -64,4 +77,5 @@ class Package:
 
     @property
     def data_size(self) -> int:
+        """Total size of the files' data in bytes."""
         return sum(file.size for file in self.files)

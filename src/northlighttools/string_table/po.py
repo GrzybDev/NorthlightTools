@@ -36,7 +36,12 @@ _PARAGRAPHS = re.compile(r"paragraphs: ([1-9]\d*)")
 
 
 def export_po(entries: Iterable[StringEntry], filename: str = "string_table.bin") -> bytes:
-    """Return a PO document with the entries' paragraphs as untranslated units."""
+    """Return a PO document with the entries' paragraphs as untranslated units.
+
+    Args:
+        entries: The string table's entries.
+        filename: Name of the string table, recorded in the Project-Id-Version header.
+    """
     store = pofile(noheader=True, width=-1)
     store.init_headers(project_id_version=filename, pot_creation_date="", po_revision_date="")
     occurrences: Counter[str] = Counter()
@@ -65,7 +70,11 @@ def export_po(entries: Iterable[StringEntry], filename: str = "string_table.bin"
 
 
 def import_po(data: bytes) -> list[StringEntry]:
-    """Build string table entries from a PO document, in its order."""
+    """Build string table entries from a PO document, in its order.
+
+    Args:
+        data: Contents of the PO document.
+    """
     try:
         store = pofile.parsestring(data)
     except Exception as error:

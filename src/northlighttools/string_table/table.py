@@ -20,7 +20,11 @@ class StringEntry:
 
 
 def decode_string_table(data: bytes) -> list[StringEntry]:
-    """Parse a string table, keeping its order and repeated keys."""
+    """Parse a string table, keeping its order and repeated keys.
+
+    Args:
+        data: Contents of a string_table.bin file.
+    """
     reader = BinaryReader(data)
     entries = []
     for _ in range(reader.u32()):
@@ -34,7 +38,11 @@ def decode_string_table(data: bytes) -> list[StringEntry]:
 
 
 def encode_string_table(entries: Iterable[StringEntry]) -> bytes:
-    """Build a string table from its entries."""
+    """Build a string table from its entries.
+
+    Args:
+        entries: The entries, in table order.
+    """
     entries = list(entries)
     writer = BinaryWriter()
     writer.u32(len(entries))

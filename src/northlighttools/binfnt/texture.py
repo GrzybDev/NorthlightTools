@@ -25,11 +25,20 @@ _BEYOND_FIELD = 0x7FFF
 
 
 def can_convert(pixel_format: PixelFormat) -> bool:
+    """Return whether textures of a pixel format convert to and from images.
+
+    Args:
+        pixel_format: Pixel format of the texture.
+    """
     return pixel_format is not PixelFormat.DXT5
 
 
 def decode_pixels(texture: DdsTexture) -> Pixels:
-    """Return the full-size image of an uncompressed texture."""
+    """Return the full-size image of an uncompressed texture.
+
+    Args:
+        texture: A texture in a pixel format that can_convert accepts.
+    """
     width, height, data = texture.width, texture.height, texture.levels[0]
     match texture.pixel_format:
         case PixelFormat.A4R4G4B4:
@@ -51,6 +60,11 @@ def encode_pixels(pixels: Pixels, pixel_format: PixelFormat, mipmap_count: int) 
 
     Mipmaps average 2x2 blocks of the stored values, rounding to nearest, which
     reproduces those of the games' own fonts.
+
+    Args:
+        pixels: The full-size image.
+        pixel_format: Pixel format to store.
+        mipmap_count: Number of levels, the full-size image included.
     """
     height, width = pixels.shape[:2]
     values = _stored_values(pixels, pixel_format)
@@ -65,6 +79,12 @@ def encode_pixels(pixels: Pixels, pixel_format: PixelFormat, mipmap_count: int) 
 
 
 def to_image(pixels: Pixels, pixel_format: PixelFormat) -> Image.Image:
+    """Return an image that keeps the stored values of the pixels exactly.
+
+    Args:
+        pixels: Pixels as decode_pixels returns them.
+        pixel_format: Pixel format the pixels come from.
+    """
     if pixel_format is PixelFormat.R16F:
         bits = pixels.astype(np.int32)
         gray = np.where(bits & _SIGN, bits, _GRAY_EDGE - bits)
@@ -73,7 +93,12 @@ def to_image(pixels: Pixels, pixel_format: PixelFormat) -> Image.Image:
 
 
 def from_image(image: Image.Image, pixel_format: PixelFormat) -> Pixels:
-    """Undo to_image."""
+    """Undo to_image.
+
+    Args:
+        image: An image made by to_image or edited from one.
+        pixel_format: Pixel format to store.
+    """
     if pixel_format is PixelFormat.R16F:
         if image.mode not in ("I;16", "I;16B", "I"):
             msg = f"A distance field needs a 16-bit grayscale image, not {image.mode}"

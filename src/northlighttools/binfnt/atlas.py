@@ -167,7 +167,13 @@ def _atlas_size(font: BinaryFont, width: int) -> float:
 
 
 def decompile_font(font: BinaryFont, json_path: Path, *, separate_glyphs: bool = False) -> None:
-    """Write a font as a JSON document at json_path, with its texture beside it."""
+    """Write a font as a JSON document, with its texture beside it.
+
+    Args:
+        font: The font to write.
+        json_path: Where to write the document.
+        separate_glyphs: Whether to save each glyph as its own image instead of the texture.
+    """
     texture = decode_dds(font.texture)
     width, height = texture.width, texture.height
     codes = _glyph_codes(font)
@@ -410,7 +416,11 @@ def _load(data: bytes) -> dict[str, Any]:
 
 
 def compile_font(json_path: Path) -> BinaryFont:
-    """Build a binary font from a JSON document written by decompile_font."""
+    """Build a binary font from a JSON document written by decompile_font.
+
+    Args:
+        json_path: The document; the files it names are read from beside it.
+    """
     document = _load(json_path.read_bytes())
     try:
         return _build_font(document, json_path.parent)

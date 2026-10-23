@@ -11,7 +11,11 @@ from typing import BinaryIO
 
 @contextmanager
 def atomic_writer(path: Path) -> Iterator[BinaryIO]:
-    """Open a temporary file that replaces path only when the block succeeds."""
+    """Open a temporary file that replaces path only when the block succeeds.
+
+    Args:
+        path: File to create or replace.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
     try:
@@ -26,7 +30,12 @@ def atomic_writer(path: Path) -> Iterator[BinaryIO]:
 
 
 def write_atomically(path: Path, data: bytes) -> None:
-    """Write data to path through a temporary file."""
+    """Write data to path through a temporary file.
+
+    Args:
+        path: File to create or replace.
+        data: The file's new contents.
+    """
     with atomic_writer(path) as stream:
         stream.write(data)
 

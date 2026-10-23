@@ -52,9 +52,10 @@ def _open(path: Path) -> tuple[Package, Path]:
         return read_package(index_path), data_path
 
 
-@app.command(help="Show what a package is made for and what it holds.")
+@app.command()
 @reports_errors
 def info(package_path: PackageArgument) -> None:
+    """Show what a package is made for and what it holds."""
     package, _ = _open(package_path)
     table = Table(show_header=False, box=None)
     table.add_row("Game", f"{package.format.title} (version {package.format.version})")
@@ -68,9 +69,10 @@ def info(package_path: PackageArgument) -> None:
     console.print(table)
 
 
-@app.command(name="list", help="List the files of a package.")
+@app.command(name="list")
 @reports_errors
 def list_files(package_path: PackageArgument) -> None:
+    """List the files of a package."""
     package, _ = _open(package_path)
     table = Table("Path", "Size", "Offset", "Modified (UTC)")
     for file in package.files:
@@ -92,7 +94,7 @@ def _modified(timestamp: int | None) -> str:
     return moment.strftime("%Y-%m-%d %H:%M:%S")
 
 
-@app.command(help="Extract every file of a package.")
+@app.command()
 @reports_errors
 def extract(
     package_path: PackageArgument,
@@ -104,6 +106,7 @@ def extract(
         ),
     ] = None,
 ) -> None:
+    """Extract every file of a package."""
     package, data_path = _open(package_path)
     output_dir = output_dir or data_path.with_suffix("")
     with progress_bar() as progress:
@@ -116,7 +119,7 @@ def extract(
     done(f"Extracted {len(package.files)} files to {output_dir}")
 
 
-@app.command(help="Pack a directory into a package.")
+@app.command()
 @reports_errors
 def pack(
     input_dir: Annotated[
@@ -150,6 +153,7 @@ def pack(
         ),
     ] = None,
 ) -> None:
+    """Pack a directory into a package."""
     if game and original:
         msg = "--original sets the package format; leave out --game"
         raise ValueError(msg)
