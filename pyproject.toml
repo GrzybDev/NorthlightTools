@@ -1,7 +1,7 @@
 [project]
 name = "northlighttools"
 version = "2.0.0"
-description = "Collection of various tools for Northlight Engine used for Polish fan translation of Quantum Break!"
+description = "A command-line toolkit that unpacks and rebuilds the packages, string tables and fonts of Remedy's Northlight engine games, from Alan Wake to Control, for translations and mods"
 authors = [
     {name = "Marek Grzyb",email = "marek@grzyb.dev"}
 ]
