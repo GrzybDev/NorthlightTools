@@ -130,9 +130,7 @@ def _split_glyphs(
     glyphs = []
     next_vertex = next_index = 0
     for number, record in enumerate(records):
-        first_vertex, vertex_count, first_index, index_count, channel = map(
-            int, record[:5]
-        )
+        first_vertex, vertex_count, first_index, index_count, channel = map(int, record[:5])
         # Every known font stores the glyphs' parts one after another, which is
         # what lets a glyph own its vertices and indices.
         if (first_vertex, first_index) != (next_vertex, next_index):

@@ -35,23 +35,17 @@ _AFTER = "layout after: "
 _PARAGRAPHS = re.compile(r"paragraphs: ([1-9]\d*)")
 
 
-def export_po(
-    entries: Iterable[StringEntry], filename: str = "string_table.bin"
-) -> bytes:
+def export_po(entries: Iterable[StringEntry], filename: str = "string_table.bin") -> bytes:
     """Return a PO document with the entries' paragraphs as untranslated units."""
     store = pofile(noheader=True, width=-1)
-    store.init_headers(
-        project_id_version=filename, pot_creation_date="", po_revision_date=""
-    )
+    store.init_headers(project_id_version=filename, pot_creation_date="", po_revision_date="")
     occurrences: Counter[str] = Counter()
     for entry in checked(entries, "PO"):
         occurrences[entry.key] += 1
         layout = Layout.of(entry.value)
         count = len(layout.paragraphs)
         for number, paragraph in enumerate(layout.paragraphs, start=1):
-            context = _context(
-                entry.key, occurrences[entry.key], number if count > 1 else None
-            )
+            context = _context(entry.key, occurrences[entry.key], number if count > 1 else None)
             if paragraph.startswith("_:"):
                 msg = f"{context}: a text starting with _: would be read as a comment"
                 raise ValueError(msg)
@@ -121,9 +115,7 @@ def _entries(units: Iterable[pounit]) -> Iterator[_Entry]:
             occurrences[key] += 1
             if occurrence != occurrences[key]:
                 expected = occurrences[key]
-                msg = (
-                    f"{context}: entry {occurrence} of its key is where {expected} goes"
-                )
+                msg = f"{context}: entry {occurrence} of its key is where {expected} goes"
                 raise FormatError(msg)
             if number == 1 and paragraphs is None:
                 msg = f"{context}: the comment counting its paragraphs is missing"
@@ -137,9 +129,7 @@ def _entries(units: Iterable[pounit]) -> Iterator[_Entry]:
             or occurrences[key] != occurrence
             or len(entry.texts) + 1 != number
         ):
-            msg = (
-                f"{context}: paragraph {number} does not follow paragraph {number - 1}"
-            )
+            msg = f"{context}: paragraph {number} does not follow paragraph {number - 1}"
             raise FormatError(msg)
         entry.texts.append(str(unit.target if unit.istranslated() else unit.source))
         entry.afters.append(after)

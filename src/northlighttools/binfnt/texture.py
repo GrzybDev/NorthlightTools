@@ -46,9 +46,7 @@ def decode_pixels(texture: DdsTexture) -> Pixels:
             raise ValueError(msg)
 
 
-def encode_pixels(
-    pixels: Pixels, pixel_format: PixelFormat, mipmap_count: int
-) -> DdsTexture:
+def encode_pixels(pixels: Pixels, pixel_format: PixelFormat, mipmap_count: int) -> DdsTexture:
     """Build a texture and its mipmaps from a full-size image.
 
     Mipmaps average 2x2 blocks of the stored values, rounding to nearest, which
@@ -60,9 +58,7 @@ def encode_pixels(
     for level in range(mipmap_count):
         if level:
             values = (
-                _halve_half_floats(values)
-                if pixel_format is PixelFormat.R16F
-                else _halve(values)
+                _halve_half_floats(values) if pixel_format is PixelFormat.R16F else _halve(values)
             )
         levels.append(_pack(values, pixel_format))
     return DdsTexture(width, height, pixel_format, tuple(levels))

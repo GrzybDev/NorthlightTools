@@ -163,9 +163,7 @@ def repack_directory(
         atomic_writer(index_path) as index,
         original_data_path.open("rb") as original_data,
     ):
-        layout: list[tuple[PackagePath, PackageFile | None]] = [
-            (file.path, file) for file in kept
-        ]
+        layout: list[tuple[PackagePath, PackageFile | None]] = [(file.path, file) for file in kept]
         for package_path, previous in layout + [(path, None) for path in added]:
             if previous is not None and data.tell() <= previous.offset:
                 data.write(bytes(previous.offset - data.tell()))
@@ -176,9 +174,7 @@ def repack_directory(
             if previous is not None:
                 file = replace(file, flags=previous.flags)
                 if _unchanged(file, previous, original_data):
-                    file = replace(
-                        file, checksum=previous.checksum, timestamp=previous.timestamp
-                    )
+                    file = replace(file, checksum=previous.checksum, timestamp=previous.timestamp)
             files[package_path] = file
             if on_file:
                 on_file(file)

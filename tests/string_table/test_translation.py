@@ -24,9 +24,7 @@ def test_every_format_is_told_apart_and_imports_back_unchanged(
     assert detect_format(codecs.BOM_UTF8 + data) is translation_format
 
 
-@pytest.mark.parametrize(
-    "translation_format", [TranslationFormat.XLIFF2, TranslationFormat.XLIFF1]
-)
+@pytest.mark.parametrize("translation_format", [TranslationFormat.XLIFF2, TranslationFormat.XLIFF1])
 def test_xliff_in_utf_16_is_read_as_xml(translation_format: TranslationFormat) -> None:
     data = export_translation(ENTRIES, translation_format).decode()
     utf16 = data.replace('encoding="UTF-8"', 'encoding="UTF-16"').encode("utf-16")

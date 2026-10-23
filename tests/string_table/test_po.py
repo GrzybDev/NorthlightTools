@@ -45,8 +45,7 @@ def test_paragraphs_become_units_with_their_layout_in_comments() -> None:
         (
             "LETTER/1",
             "Josef,",
-            'layout before: "\\n"\nparagraphs: 2\n'
-            'layout after: "\\r\\n\\\\n\\r\\n\\\\n"',
+            'layout before: "\\n"\nparagraphs: 2\nlayout after: "\\r\\n\\\\n\\r\\n\\\\n"',
         ),
         ("LETTER/2", "I asked.", 'layout after: "\\\\n"'),
     ]
@@ -67,9 +66,7 @@ def test_contexts_name_keys_repeats_and_paragraphs_unambiguously() -> None:
 
 
 def test_lost_layout_comments_are_reported() -> None:
-    data = export_po([StringEntry("KEY", "One\nTwo")]).replace(
-        b'#. layout after: "\\n"\n', b""
-    )
+    data = export_po([StringEntry("KEY", "One\nTwo")]).replace(b'#. layout after: "\\n"\n', b"")
 
     with pytest.raises(FormatError, match="layout comments of 'KEY' are missing"):
         import_po(data)
@@ -93,9 +90,7 @@ def test_lost_paragraphs_are_reported(text: str, lost: int, left: int) -> None:
 
 
 def test_lost_paragraph_counts_are_reported() -> None:
-    data = export_po([StringEntry("KEY", "One\nTwo")]).replace(
-        b"#. paragraphs: 2\n", b""
-    )
+    data = export_po([StringEntry("KEY", "One\nTwo")]).replace(b"#. paragraphs: 2\n", b"")
 
     with pytest.raises(FormatError, match="comment counting its paragraphs"):
         import_po(data)
@@ -116,15 +111,11 @@ def test_texts_read_as_kde_comments_are_refused() -> None:
         export_po([StringEntry("KEY", "_: not a comment")])
 
 
-@pytest.mark.parametrize(
-    ("msgstr", "imported"), [("Przytrzymaj", "Przytrzymaj"), ("", None)]
-)
+@pytest.mark.parametrize(("msgstr", "imported"), [("Przytrzymaj", "Przytrzymaj"), ("", None)])
 def test_rewrapped_kde_like_lines_only_matter_untranslated(
     msgstr: str, imported: str | None
 ) -> None:
-    data = (
-        f'msgctxt "HINT"\nmsgid ""\n"Hold to save "\n"_:1 slot"\nmsgstr "{msgstr}"\n'
-    ).encode()
+    data = (f'msgctxt "HINT"\nmsgid ""\n"Hold to save "\n"_:1 slot"\nmsgstr "{msgstr}"\n').encode()
 
     if imported is None:
         with pytest.raises(FormatError, match="read as a comment"):

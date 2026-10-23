@@ -355,9 +355,7 @@ class _TreeBuilder:
         parent = self.add_folder(path[:-1])
         index = len(self.folders)
         offset, checksum = self._add_name(path[-1])
-        self.folders.append(
-            _Folder(checksum, self.null, parent, offset, self.null, self.null)
-        )
+        self.folders.append(_Folder(checksum, self.null, parent, offset, self.null, self.null))
         if (previous := self._last_child.get(parent)) is None:
             self.folders[parent].first_child = index
         else:

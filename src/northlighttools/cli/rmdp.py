@@ -121,9 +121,7 @@ def extract(
 def pack(
     input_dir: Annotated[
         Path,
-        typer.Argument(
-            help="Directory to pack", exists=True, file_okay=False, dir_okay=True
-        ),
+        typer.Argument(help="Directory to pack", exists=True, file_okay=False, dir_okay=True),
     ],
     output_path: Annotated[
         Path | None,
@@ -167,8 +165,6 @@ def pack(
             package = repack_directory(input_dir, output_path, original, advance)
         else:
             package_format = FORMATS[game or Game.QUANTUM_BREAK]
-            package = pack_directory(
-                input_dir, output_path, package_format, on_file=advance
-            )
+            package = pack_directory(input_dir, output_path, package_format, on_file=advance)
     index_path, data_path = package_paths(output_path)
     done(f"Packed {len(package.files)} files into {index_path} and {data_path}")

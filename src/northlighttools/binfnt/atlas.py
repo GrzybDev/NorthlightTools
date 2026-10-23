@@ -63,8 +63,7 @@ def _float32(value: float) -> float:
 def _same_floats(first: Iterable[float], second: Iterable[float]) -> bool:
     first, second = tuple(first), tuple(second)
     return len(first) == len(second) and all(
-        struct.pack("<f", a) == struct.pack("<f", b)
-        for a, b in zip(first, second, strict=True)
+        struct.pack("<f", a) == struct.pack("<f", b) for a, b in zip(first, second, strict=True)
     )
 
 
@@ -151,9 +150,7 @@ def _glyph_codes(font: BinaryFont) -> list[int | None]:
             raise ValueError(msg)
         codes[index] = code
     if None in codes[1:]:
-        msg = (
-            f"Glyph {codes.index(None, 1)} serves no character; the JSON cannot hold it"
-        )
+        msg = f"Glyph {codes.index(None, 1)} serves no character; the JSON cannot hold it"
         raise ValueError(msg)
     return codes
 
@@ -169,9 +166,7 @@ def _atlas_size(font: BinaryFont, width: int) -> float:
     return round(statistics.median(ratios) * 16) / 16 if ratios else 0.0
 
 
-def decompile_font(
-    font: BinaryFont, json_path: Path, *, separate_glyphs: bool = False
-) -> None:
+def decompile_font(font: BinaryFont, json_path: Path, *, separate_glyphs: bool = False) -> None:
     """Write a font as a JSON document at json_path, with its texture beside it."""
     texture = decode_dds(font.texture)
     width, height = texture.width, texture.height
@@ -205,9 +200,7 @@ def decompile_font(
             {
                 "unicode1": pair.first,
                 "unicode2": pair.second,
-                "advance": int(pair.amount)
-                if font.version is FontVersion.V4
-                else _em(pair.amount),
+                "advance": int(pair.amount) if font.version is FontVersion.V4 else _em(pair.amount),
             }
             for pair in font.kerning
         ]
@@ -227,11 +220,7 @@ def decompile_font(
             code = codes[index]
             name = f"U+{code:04X}.png" if code is not None else "fallback.png"
             glyphs[index]["image"] = name
-            image = (
-                Image.fromarray(region)
-                if packed
-                else to_image(region, texture.pixel_format)
-            )
+            image = Image.fromarray(region) if packed else to_image(region, texture.pixel_format)
             image.save(folder / name)
     elif pixels is not None:
         northlight["texture"] = f"{stem}.png"
@@ -242,9 +231,7 @@ def decompile_font(
     write_atomically(json_path, _dump(document))
 
 
-def _atlas_entry(
-    font: BinaryFont, texture: DdsTexture, pixels: Pixels | None
-) -> dict[str, Any]:
+def _atlas_entry(font: BinaryFont, texture: DdsTexture, pixels: Pixels | None) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "type": "sdf" if texture.pixel_format is PixelFormat.R16F else "softmask"
     }
@@ -340,9 +327,7 @@ def _whole_bounds(
     return left, top, right, bottom
 
 
-def _check_inside(
-    bounds: tuple[int, int, int, int], size: tuple[int, int], what: str
-) -> None:
+def _check_inside(bounds: tuple[int, int, int, int], size: tuple[int, int], what: str) -> None:
     """Refuse a rectangle reaching past the texture, which numpy would clip."""
     left, top, right, bottom = bounds
     width, height = size
@@ -351,9 +336,7 @@ def _check_inside(
         raise ValueError(msg)
 
 
-def _blank_canvas(
-    pixel_format: PixelFormat, size: tuple[int, int], background: str
-) -> Pixels:
+def _blank_canvas(pixel_format: PixelFormat, size: tuple[int, int], background: str) -> Pixels:
     width, height = size
     value = bytes.fromhex(background)
     if pixel_format is PixelFormat.R16F:
@@ -363,9 +346,7 @@ def _blank_canvas(
     return canvas
 
 
-def _region(
-    bounds: tuple[int, int, int, int], channel: int | None
-) -> tuple[slice | int, ...]:
+def _region(bounds: tuple[int, int, int, int], channel: int | None) -> tuple[slice | int, ...]:
     left, top, right, bottom = bounds
     rows, columns = slice(top, bottom), slice(left, right)
     return (rows, columns) if channel is None else (rows, columns, channel)
@@ -382,9 +363,7 @@ def _cut_glyphs(
     packed = any(glyph.channel for glyph in font.glyphs)
     canvas = _blank_canvas(texture.pixel_format, pixels.shape[1::-1], background)
     cuts = []
-    for index, (glyph, rectangle) in enumerate(
-        zip(font.glyphs, rectangles, strict=True)
-    ):
+    for index, (glyph, rectangle) in enumerate(zip(font.glyphs, rectangles, strict=True)):
         if rectangle is None:
             msg = f"Glyph {index} is not a textured rectangle and cannot be cut out"
             raise ValueError(msg)
@@ -450,9 +429,7 @@ def _build_font(document: dict[str, Any], folder: Path) -> BinaryFont:
     for index, entry in enumerate(document["glyphs"]):
         if index == 0:
             if "unicode" in entry:
-                msg = (
-                    "The first glyph is drawn for missing characters and has no unicode"
-                )
+                msg = "The first glyph is drawn for missing characters and has no unicode"
                 raise FormatError(msg)
         else:
             code = entry["unicode"]
@@ -480,9 +457,7 @@ def _build_font(document: dict[str, Any], folder: Path) -> BinaryFont:
 def _read_glyph(entry: dict[str, Any], width: int, height: int) -> Glyph:
     if "vertices" in entry:
         vertices = tuple(
-            Vertex(
-                _float32(x), _float32(y), _coordinate(u, width), _coordinate(v, height)
-            )
+            Vertex(_float32(x), _float32(y), _coordinate(u, width), _coordinate(v, height))
             for x, y, u, v in entry["vertices"]
         )
         indices = tuple(entry["triangles"])
@@ -573,9 +548,6 @@ def _compose(
             if image.size != (right - left, bottom - top):
                 msg = f"{name} is {image.size}, not {(right - left, bottom - top)}"
                 raise FormatError(msg)
-            if packed:
-                pixels = np.asarray(image.convert("L"))
-            else:
-                pixels = from_image(image, pixel_format)
+            pixels = np.asarray(image.convert("L")) if packed else from_image(image, pixel_format)
         canvas[_region(bounds, entry["channel"] if packed else None)] = pixels
     return canvas

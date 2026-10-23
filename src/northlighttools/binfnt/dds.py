@@ -78,15 +78,9 @@ def decode_dds(data: bytes) -> DdsTexture:
     reader.read(20)
 
     pixel_format = next(
-        (
-            f
-            for f, code in _FOURCCS.items()
-            if format_flags & _FOURCC and fourcc == code
-        ),
+        (f for f, code in _FOURCCS.items() if format_flags & _FOURCC and fourcc == code),
         None,
-    ) or next(
-        (f for f, m in _RGB_MASKS.items() if format_flags & _RGB and masks == m), None
-    )
+    ) or next((f for f, m in _RGB_MASKS.items() if format_flags & _RGB and masks == m), None)
     if pixel_format is None:
         msg = f"Unsupported DDS pixel format (flags {format_flags:#x}, {fourcc!r})"
         raise FormatError(msg)

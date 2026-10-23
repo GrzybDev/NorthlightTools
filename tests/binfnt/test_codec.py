@@ -24,9 +24,7 @@ def test_version_3_stores_the_texture_size_and_no_kerning() -> None:
     assert data.endswith(texture_size + font.texture)
     with pytest.raises(ValueError, match="have no kerning"):
         encode_font(
-            BinaryFont(
-                **{**vars(font), "kerning": SAMPLES["alan wake remastered"].kerning}
-            )
+            BinaryFont(**{**vars(font), "kerning": SAMPLES["alan wake remastered"].kerning})
         )
 
 

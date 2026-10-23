@@ -31,6 +31,4 @@ def translate(paragraph: str) -> str:
 def translated(entry: StringEntry) -> StringEntry:
     """The entry with every paragraph translated, its layout kept."""
     layout = Layout.of(entry.value)
-    return StringEntry(
-        entry.key, layout.join([translate(p) for p in layout.paragraphs])
-    )
+    return StringEntry(entry.key, layout.join([translate(p) for p in layout.paragraphs]))

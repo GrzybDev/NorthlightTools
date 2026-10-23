@@ -33,9 +33,7 @@ def source(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize("game", list(Game))
-def test_a_packed_directory_extracts_unchanged(
-    game: Game, source: Path, tmp_path: Path
-) -> None:
+def test_a_packed_directory_extracts_unchanged(game: Game, source: Path, tmp_path: Path) -> None:
     pack_directory(source, tmp_path / "out.rmdp", FORMATS[game])
 
     package = read_package(tmp_path / "out.bin")
@@ -63,9 +61,7 @@ def test_timestamps_survive_packing_and_extraction(
 
 
 @pytest.mark.parametrize("game", [Game.ALAN_WAKE, Game.ALAN_WAKE_REMASTERED])
-def test_formats_without_timestamps_pack_none(
-    game: Game, source: Path, tmp_path: Path
-) -> None:
+def test_formats_without_timestamps_pack_none(game: Game, source: Path, tmp_path: Path) -> None:
     package = pack_directory(source, tmp_path / "out.rmdp", FORMATS[game])
 
     assert all(file.timestamp is None for file in package.files)
@@ -73,9 +69,7 @@ def test_formats_without_timestamps_pack_none(
 
 
 @pytest.mark.parametrize("game", list(Game))
-def test_file_data_is_aligned_as_in_the_games(
-    game: Game, source: Path, tmp_path: Path
-) -> None:
+def test_file_data_is_aligned_as_in_the_games(game: Game, source: Path, tmp_path: Path) -> None:
     alignment = FORMATS[game].data_alignment
 
     package = pack_directory(source, tmp_path / "out.rmdp", FORMATS[game])
@@ -84,9 +78,7 @@ def test_file_data_is_aligned_as_in_the_games(
     assert (tmp_path / "out.rmdp").stat().st_size % alignment == 0
 
 
-def test_data_not_matching_its_checksum_is_reported(
-    source: Path, tmp_path: Path
-) -> None:
+def test_data_not_matching_its_checksum_is_reported(source: Path, tmp_path: Path) -> None:
     package = pack_directory(source, tmp_path / "out.rmdp", FORMATS[Game.CONTROL])
     body = next(file for file in package.files if file.name == "body.binfnt")
     data = bytearray((tmp_path / "out.rmdp").read_bytes())

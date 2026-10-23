@@ -85,9 +85,7 @@ def test_an_unchanged_directory_repacks_into_the_same_package(
 
     repack_directory(tmp_path / "extracted", tmp_path / "again.rmdp", original)
 
-    assert (tmp_path / "again.bin").read_bytes() == original.with_suffix(
-        ".bin"
-    ).read_bytes()
+    assert (tmp_path / "again.bin").read_bytes() == original.with_suffix(".bin").read_bytes()
     assert (tmp_path / "again.rmdp").read_bytes() == original.read_bytes()
 
 
@@ -100,15 +98,11 @@ def test_a_changed_file_changes_only_its_own_record(
     changed = tmp_path / "extracted" / "data" / "fonts" / "title.binfnt"
     changed.write_bytes(b"LETTERS" * 50)
 
-    package = repack_directory(
-        tmp_path / "extracted", tmp_path / "again.rmdp", original
-    )
+    package = repack_directory(tmp_path / "extracted", tmp_path / "again.rmdp", original)
 
     before = read_package(original)
     after = decode_index((tmp_path / "again.bin").read_bytes())
-    assert [file.offset for file in after.files] == [
-        file.offset for file in before.files
-    ]
+    assert [file.offset for file in after.files] == [file.offset for file in before.files]
     for old, new in zip(before.files, after.files, strict=True):
         assert (new.checksum == old.checksum) == (new.name != "title.binfnt")
     assert package.files == after.files
@@ -134,9 +128,7 @@ def test_new_files_go_after_the_original_data(source: Path, tmp_path: Path) -> N
     extract(original, tmp_path / "extracted")
     (tmp_path / "extracted" / "data" / "added.txt").write_bytes(b"new")
 
-    package = repack_directory(
-        tmp_path / "extracted", tmp_path / "again.rmdp", original
-    )
+    package = repack_directory(tmp_path / "extracted", tmp_path / "again.rmdp", original)
 
     before = {file.path: file.offset for file in read_package(original).files}
     offsets = {file.path: file.offset for file in package.files}

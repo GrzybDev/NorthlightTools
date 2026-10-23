@@ -57,9 +57,7 @@ def test_untranslated_export_imports_back_unchanged(
 def test_translated_paragraphs_keep_the_layout(
     export: Export, import_: Import, namespace: str, translatable: str
 ) -> None:
-    data = add_targets(
-        export(ENTRIES, "string_table.bin", "en"), namespace, translatable
-    )
+    data = add_targets(export(ENTRIES, "string_table.bin", "en"), namespace, translatable)
 
     assert import_(data) == [translated(entry) for entry in ENTRIES]
 
@@ -118,9 +116,7 @@ def test_xliff1_groups_texts_with_layout_and_marks_the_layout_untranslatable() -
     root = etree.fromstring(export_xliff1(ENTRIES))
     body = root.find(f"{XLIFF1}file/{XLIFF1}body")
     assert body is not None
-    letter = next(
-        g for g in body.iter(f"{XLIFF1}group") if g.get("resname") == "LETTER"
-    )
+    letter = next(g for g in body.iter(f"{XLIFF1}group") if g.get("resname") == "LETTER")
 
     units = [(unit.get("id"), unit.get("translate")) for unit in letter]
 

@@ -37,9 +37,7 @@ def to_filesystem_name(name: str) -> str:
     if not name:
         msg = "A package entry has an empty name"
         raise ValueError(msg)
-    characters = [
-        _escape(c) if c in _UNSAFE_CHARACTERS or ord(c) < 0x20 else c for c in name
-    ]
+    characters = [_escape(c) if c in _UNSAFE_CHARACTERS or ord(c) < 0x20 else c for c in name]
     # Windows drops trailing dots and spaces, and reserves the names of devices.
     if name[-1] in ". ":
         characters[-1] = _escape(name[-1])

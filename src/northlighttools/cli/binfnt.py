@@ -19,9 +19,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-FontArgument = Annotated[
-    Path, typer.Argument(help="The .binfnt file", exists=True, dir_okay=False)
-]
+FontArgument = Annotated[Path, typer.Argument(help="The .binfnt file", exists=True, dir_okay=False)]
 
 
 @app.command(help="Show what a font holds.")
@@ -74,9 +72,7 @@ def decompile(
 def compile_command(
     json_path: Annotated[
         Path,
-        typer.Argument(
-            help="The JSON document written by decompile", exists=True, dir_okay=False
-        ),
+        typer.Argument(help="The JSON document written by decompile", exists=True, dir_okay=False),
     ],
     output_path: Annotated[
         Path | None,

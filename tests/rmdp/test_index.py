@@ -71,9 +71,7 @@ def test_index_survives_a_round_trip(game: Game) -> None:
         (Game.CONTROL, 48, 60),
     ],
 )
-def test_entries_have_the_sizes_the_games_use(
-    game: Game, folder_size: int, file_size: int
-) -> None:
+def test_entries_have_the_sizes_the_games_use(game: Game, folder_size: int, file_size: int) -> None:
     package_format = FORMATS[game]
 
     assert packer(ByteOrder.LITTLE, package_format.folder_fields).size == folder_size
@@ -131,9 +129,7 @@ def test_layout_of_version_2_is_told_apart(game: Game) -> None:
 
 def test_byte_order_flag_leads_the_index() -> None:
     big = encode_index(make_package(Game.ALAN_WAKE, SAMPLE_PATHS))
-    little = encode_index(
-        make_package(Game.ALAN_WAKE, SAMPLE_PATHS, byte_order=ByteOrder.LITTLE)
-    )
+    little = encode_index(make_package(Game.ALAN_WAKE, SAMPLE_PATHS, byte_order=ByteOrder.LITTLE))
 
     assert big[:5] == b"\x01\x00\x00\x00\x02"
     assert little[:5] == b"\x00\x02\x00\x00\x00"

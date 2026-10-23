@@ -161,9 +161,7 @@ def test_glyphs_reaching_past_the_texture_are_not_cut_out(tmp_path: Path) -> Non
     outside = replace(
         font.glyphs[1], vertices=rectangle((0.0625, 0.0, 0.5625, 0.75), (12, 0, 17, 8))
     )
-    font = BinaryFont(
-        **{**vars(font), "glyphs": [font.glyphs[0], outside], "charmap": {65: 1}}
-    )
+    font = BinaryFont(**{**vars(font), "glyphs": [font.glyphs[0], outside], "charmap": {65: 1}})
 
     with pytest.raises(ValueError, match="Glyph 1 reaches outside the 16x16 texture"):
         decompile_font(font, tmp_path / "font.json", separate_glyphs=True)

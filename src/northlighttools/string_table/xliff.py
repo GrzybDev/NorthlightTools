@@ -70,9 +70,7 @@ def export_xliff2(
         if numbered:
             unit.set("canResegment", "no")
         for is_paragraph, number, text in _parts(layout):
-            part = etree.SubElement(
-                unit, _xliff2("segment" if is_paragraph else "ignorable")
-            )
+            part = etree.SubElement(unit, _xliff2("segment" if is_paragraph else "ignorable"))
             if is_paragraph and numbered:
                 part.set("id", str(number))
             etree.SubElement(part, _xliff2("source")).text = text

@@ -21,9 +21,7 @@ CONVERTIBLE = [PixelFormat.A4R4G4B4, PixelFormat.A8R8G8B8, PixelFormat.R16F]
 
 @pytest.mark.parametrize("pixel_format", CONVERTIBLE)
 @pytest.mark.parametrize("legacy_header", [True, False])
-def test_textures_survive_a_round_trip(
-    pixel_format: PixelFormat, legacy_header: bool
-) -> None:
+def test_textures_survive_a_round_trip(pixel_format: PixelFormat, legacy_header: bool) -> None:
     texture = encode_pixels(pixels_for(pixel_format), pixel_format, 3)
 
     data = encode_dds(texture, legacy_header)

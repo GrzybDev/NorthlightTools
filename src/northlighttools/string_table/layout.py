@@ -53,6 +53,5 @@ class Layout:
             msg = f"Expected {len(self.paragraphs)} paragraphs, got {len(paragraphs)}"
             raise ValueError(msg)
         return self.runs[0] + "".join(
-            paragraph + run
-            for paragraph, run in zip(paragraphs, self.runs[1:], strict=True)
+            paragraph + run for paragraph, run in zip(paragraphs, self.runs[1:], strict=True)
         )

@@ -84,9 +84,7 @@ class PackageFormat:
 FORMATS: dict[Game, PackageFormat] = {
     package_format.game: package_format
     for package_format in (
-        PackageFormat(
-            Game.ALAN_WAKE, "Alan Wake", 2, "I", False, ByteOrder.BIG, 8, "d:\\data"
-        ),
+        PackageFormat(Game.ALAN_WAKE, "Alan Wake", 2, "I", False, ByteOrder.BIG, 8, "d:\\data"),
         PackageFormat(
             Game.ALAN_WAKE_REMASTERED,
             "Alan Wake Remastered",

@@ -42,8 +42,7 @@ def export_command(
         typer.Option(
             "--format",
             "-f",
-            help="The translation format [default: by the output's extension, "
-            "else xliff-2.0]",
+            help="The translation format [default: by the output's extension, else xliff-2.0]",
             show_default=False,
         ),
     ] = None,
@@ -57,14 +56,10 @@ def export_command(
     ] = "en",
 ) -> None:
     if translation_format is None:
-        translation_format = TranslationFormat.of_suffix(
-            output_path.suffix if output_path else ""
-        )
+        translation_format = TranslationFormat.of_suffix(output_path.suffix if output_path else "")
     output_path = output_path or input_path.with_suffix(translation_format.suffix)
     entries = decode_string_table(input_path.read_bytes())
-    document = export_translation(
-        entries, translation_format, input_path.name, source_language
-    )
+    document = export_translation(entries, translation_format, input_path.name, source_language)
     write_atomically(output_path, document)
     done(f"Exported {len(entries)} strings to {output_path} as {translation_format}")
 

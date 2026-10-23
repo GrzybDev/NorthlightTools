@@ -124,9 +124,7 @@ def make_font(
 
 SAMPLES = {
     "alan wake": make_font(FontVersion.V3, PixelFormat.A4R4G4B4, mipmaps=4),
-    "alan wake packed": make_font(
-        FontVersion.V3, PixelFormat.A4R4G4B4, channels=(0, 1, 2)
-    ),
+    "alan wake packed": make_font(FontVersion.V3, PixelFormat.A4R4G4B4, channels=(0, 1, 2)),
     "alan wake remastered": make_font(FontVersion.V4, PixelFormat.A8R8G8B8, mipmaps=2),
     "quantum break fixedsys": make_font(FontVersion.V6, PixelFormat.A8R8G8B8),
     "quantum break": make_font(FontVersion.V7, PixelFormat.R16F),
