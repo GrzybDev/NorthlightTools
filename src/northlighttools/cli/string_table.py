@@ -39,8 +39,8 @@ def export_command(
         typer.Option(
             "--format",
             "-f",
-            help="The translation format [default: by the output's extension, else xliff-2.0]",
-            show_default=False,
+            help="The translation format",
+            show_default="by the output's extension, else xliff-2.0",
         ),
     ] = None,
     source_language: Annotated[

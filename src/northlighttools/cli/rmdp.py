@@ -140,7 +140,8 @@ def pack(
         typer.Option(
             "--game",
             "-g",
-            help="Game whose package format to use [default: quantum-break]",
+            help="Game whose package format to use",
+            show_default=Game.QUANTUM_BREAK.value,
         ),
     ] = None,
     original: Annotated[
